@@ -9,37 +9,39 @@
 #include <barrett/units.h>
 
 template <size_t DOF>
-class Leader : public barrett::systems::System {
+class Follower : public barrett::systems::System {
     BARRETT_UNITS_TEMPLATE_TYPEDEFS(DOF);
 
   public:
     Input<jp_type> wamJPIn;
     Input<jv_type> wamJVIn;
+    Input<jt_type> extTorqueIn;
     Output<jt_type> wamJPOutput;
 
     enum class State { INIT, LINKED, UNLINKED };
 
-    explicit Leader(barrett::systems::ExecutionManager* em, char* remoteHost, int rec_port = 5555,
-                      int send_port = 5554, const std::string& sysName = "Leader Nowrist")
+    explicit Follower(barrett::systems::ExecutionManager* em, const std::string& remoteHost, int rec_port = 5554,
+                      int send_port = 5555, const std::string& sysName = "Follower")
         : System(sysName)
         , theirJp(0.0)
         , theirJv(0.0)
         , control(0.0)
         , wamJPIn(this)
         , wamJVIn(this)
+        , extTorqueIn(this)
         , wamJPOutput(this, &jtOutputValue)
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
-        kp << 750, 1000, 400, 200;
-        kd << 8.3, 8, 3.3, 0.8;
+        kp << 750, 1000, 400, 200, 10, 10, 2.5;
+        kd << 8.3, 8, 3.3, 0.8, 0.5, 0.5, 0.05;
 
         if (em != NULL) {
             em->startManaging(*this);
         }
     }
 
-    virtual ~Leader() {
+    virtual ~Follower() {
         this->mandatoryCleanUp();
     }
 
@@ -59,8 +61,10 @@ class Leader : public barrett::systems::System {
     typename Output<jt_type>::Value* jtOutputValue;
     jp_type wamJP;
     jv_type wamJV;
+    jt_type extTorque;
     Eigen::Matrix<double, DOF, 1> sendJpMsg;
     Eigen::Matrix<double, DOF, 1> sendJvMsg;
+    Eigen::Matrix<double, DOF, 1> sendExtTorqueMsg;
 
     using ReceivedData = typename UDPHandler<DOF>::ReceivedData;
 
@@ -68,10 +72,10 @@ class Leader : public barrett::systems::System {
 
         wamJP = wamJPIn.getValue();
         wamJV = wamJVIn.getValue();
+        extTorque = extTorqueIn.getValue();
+
         sendJpMsg << wamJP;
         sendJvMsg << wamJV;
-
-        udp_handler.send(sendJpMsg, sendJvMsg);
 
         boost::optional<ReceivedData> received_data = udp_handler.getLatestReceived();
         auto now = std::chrono::steady_clock::now();
@@ -102,6 +106,10 @@ class Leader : public barrett::systems::System {
                 jtOutputValue->setData(&control);
                 break;
         }
+
+        sendExtTorqueMsg << control;
+
+        udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
     }
 
     jp_type theirJp;
@@ -109,7 +117,7 @@ class Leader : public barrett::systems::System {
     jt_type control;
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(Leader);
+    DISALLOW_COPY_AND_ASSIGN(Follower);
     std::mutex state_mutex;
     jp_type joint_positions;
     UDPHandler<DOF> udp_handler;

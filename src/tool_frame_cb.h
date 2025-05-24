@@ -38,4 +38,3 @@ class ToolFrameCb : public barrett::systems::System, public barrett::systems::Si
   private:
     DISALLOW_COPY_AND_ASSIGN(ToolFrameCb);
 };
-

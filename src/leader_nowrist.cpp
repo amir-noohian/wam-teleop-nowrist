@@ -7,8 +7,7 @@
  *      Author: Brian Zenowich
  */
 
-// this is for fourchannel
-
+#include "external_torque.h"
 #include <iostream>
 #include <string>
 
@@ -23,7 +22,7 @@
 #define BARRETT_SMF_VALIDATE_ARGS
 #include <barrett/standard_main_function.h>
 
-#include "leader_nowrist.h"
+#include "follower.h"
 #include "background_state_publisher.h"
 
 using namespace barrett;
@@ -39,7 +38,7 @@ void printUsage(const std::string& programName, const std::string& remoteHost, i
 bool validate_args(int argc, char** argv) {
 
     if ((argc == 2 && (std::string(argv[1]) == "-h" || std::string(argv[1]) == "--help")) || (argc > 4)) {
-        printUsage(argv[0], "127.0.0.1", 5555, 5554);
+        printUsage(argv[0], "127.0.0.1", 5554, 5555);
         return 0;
     }
 
@@ -50,26 +49,26 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     BARRETT_UNITS_TEMPLATE_TYPEDEFS(DOF);
 
     jp_type SYNC_POS; // the position each WAM should move to before linking
-    if (DOF == 4) {
+    if (DOF == 7) {
         SYNC_POS[0] = 0.0;
         SYNC_POS[1] = -1.5;
         SYNC_POS[2] = 0.0;
         SYNC_POS[3] = 2.7;
-        // SYNC_POS[4] = 0.0;
-        // SYNC_POS[5] = 0.0;
-        // SYNC_POS[6] = 0.0;
+        SYNC_POS[4] = 0.0;
+        SYNC_POS[5] = 0.0;
+        SYNC_POS[6] = 0.0;
 
     } else {
-        printf("Error: Only 4 DOF supported\n");
+        printf("Error: 7 DOF supported\n");
         return false;
     }
 
     std::string remoteHost = "127.0.0.1";
-    int rec_port = 5555;
-    int send_port = 5554;
+    int rec_port = 5554;
+    int send_port = 5555;
 
     if (argc >= 2) {
-        remoteHost = argv[1];
+        remoteHost = std::string(argv[1]);
     }
     if (argc >= 3) {
         rec_port = std::atoi(argv[2]);
@@ -78,12 +77,24 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
         send_port = std::atoi(argv[3]);
     }
 
-    ros::init(argc, argv, "leader_nowrist");
+    ros::init(argc, argv, "follower");
     BackgroundStatePublisher<DOF> state_publisher(pm.getExecutionManager(), wam);
 
-    Leader<DOF> leader(pm.getExecutionManager(), argv[1], rec_port, send_port);
-    systems::connect(wam.jpOutput, leader.wamJPIn);
-    systems::connect(wam.jvOutput, leader.wamJVIn);
+    ExternalTorque<DOF> externalTorque(pm.getExecutionManager());
+    systems::connect(wam.gravity.output, externalTorque.wamGravityIn);
+    systems::connect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
+
+    barrett::systems::FirstOrderFilter<jt_type> extFilter;
+    jt_type omega_p(180.0);
+    extFilter.setLowPass(omega_p);
+    pm.getExecutionManager()->startManaging(extFilter);
+
+    systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
+
+    Follower<DOF> follower(pm.getExecutionManager(), remoteHost, rec_port, send_port);
+    systems::connect(wam.jpOutput, follower.wamJPIn);
+    systems::connect(wam.jvOutput, follower.wamJVIn);
+    systems::connect(extFilter.output, follower.extTorqueIn);
 
     wam.gravityCompensate();
 
@@ -98,18 +109,19 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
         switch (line[0]) {
         case 'l':
-            if (leader.isLinked()) {
-                leader.unlink();
+            if (follower.isLinked()) {
+                follower.unlink();
             } else {
                 wam.moveTo(SYNC_POS);
 
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
-                leader.tryLink();
-                wam.trackReferenceSignal(leader.wamJPOutput);
+                follower.tryLink();
+                wam.trackReferenceSignal(follower.wamJPOutput);
+                systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
                 btsleep(0.1); // wait an execution cycle or two
-                if (leader.isLinked()) {
+                if (follower.isLinked()) {
                     printf("Linked with remote WAM.\n");
                 } else {
                     printf("WARNING: Linking was unsuccessful.\n");
@@ -191,4 +203,3 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     return 0;
 }
-
