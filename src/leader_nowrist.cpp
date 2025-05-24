@@ -22,7 +22,7 @@
 #define BARRETT_SMF_VALIDATE_ARGS
 #include <barrett/standard_main_function.h>
 
-#include "follower.h"
+#include "leader_nowrist.h"
 #include "background_state_publisher.h"
 
 using namespace barrett;
@@ -38,7 +38,7 @@ void printUsage(const std::string& programName, const std::string& remoteHost, i
 bool validate_args(int argc, char** argv) {
 
     if ((argc == 2 && (std::string(argv[1]) == "-h" || std::string(argv[1]) == "--help")) || (argc > 4)) {
-        printUsage(argv[0], "127.0.0.1", 5554, 5555);
+        printUsage(argv[0], "127.0.0.1", 5555, 5554);
         return 0;
     }
 
@@ -54,9 +54,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
         SYNC_POS[1] = -1.5;
         SYNC_POS[2] = 0.0;
         SYNC_POS[3] = 2.7;
-        SYNC_POS[4] = 0.0;
-        SYNC_POS[5] = 0.0;
-        SYNC_POS[6] = 0.0;
+        // SYNC_POS[4] = 0.0;
+        // SYNC_POS[5] = 0.0;
+        // SYNC_POS[6] = 0.0;
 
     } else {
         printf("Error: 7 DOF supported\n");
@@ -64,8 +64,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     }
 
     std::string remoteHost = "127.0.0.1";
-    int rec_port = 5554;
-    int send_port = 5555;
+    int rec_port = 5555;
+    int send_port = 5554;
 
     if (argc >= 2) {
         remoteHost = std::string(argv[1]);
@@ -77,7 +77,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
         send_port = std::atoi(argv[3]);
     }
 
-    ros::init(argc, argv, "follower");
+    ros::init(argc, argv, "leader_nowrist");
     BackgroundStatePublisher<DOF> state_publisher(pm.getExecutionManager(), wam);
 
     ExternalTorque<DOF> externalTorque(pm.getExecutionManager());
@@ -91,10 +91,10 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
 
-    Follower<DOF> follower(pm.getExecutionManager(), remoteHost, rec_port, send_port);
-    systems::connect(wam.jpOutput, follower.wamJPIn);
-    systems::connect(wam.jvOutput, follower.wamJVIn);
-    systems::connect(extFilter.output, follower.extTorqueIn);
+    Leader<DOF> leader(pm.getExecutionManager(), remoteHost, rec_port, send_port);
+    systems::connect(wam.jpOutput, leader.wamJPIn);
+    systems::connect(wam.jvOutput, leader.wamJVIn);
+    systems::connect(extFilter.output, leader.extTorqueIn);
 
     wam.gravityCompensate();
 
@@ -109,19 +109,19 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
         switch (line[0]) {
         case 'l':
-            if (follower.isLinked()) {
-                follower.unlink();
+            if (leader.isLinked()) {
+                leader.unlink();
             } else {
                 wam.moveTo(SYNC_POS);
 
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
-                follower.tryLink();
-                wam.trackReferenceSignal(follower.wamJPOutput);
+                leader.tryLink();
+                wam.trackReferenceSignal(leader.wamJPOutput);
                 systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
                 btsleep(0.1); // wait an execution cycle or two
-                if (follower.isLinked()) {
+                if (leader.isLinked()) {
                     printf("Linked with remote WAM.\n");
                 } else {
                     printf("WARNING: Linking was unsuccessful.\n");

@@ -25,6 +25,7 @@ class Follower : public barrett::systems::System {
         : System(sysName)
         , theirJp(0.0)
         , theirJv(0.0)
+        , theirExtTorque(0.0)
         , control(0.0)
         , wamJPIn(this)
         , wamJVIn(this)
@@ -33,8 +34,8 @@ class Follower : public barrett::systems::System {
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
-        kp << 750, 1000, 400, 200, 10, 10, 2.5;
-        kd << 8.3, 8, 3.3, 0.8, 0.5, 0.5, 0.05;
+        kp << 750, 1000, 400, 200;
+        kd << 8.3, 8, 3.3, 0.8;
 
         if (em != NULL) {
             em->startManaging(*this);
@@ -83,6 +84,8 @@ class Follower : public barrett::systems::System {
 
             theirJp = received_data->jp;
             theirJv = received_data->jv;
+            theirExtTorque = received_data->extTorque.template head<DOF>();
+
         } else {
             if (state == State::LINKED) {
                 std::cout << "lost link" << std::endl;
@@ -97,7 +100,7 @@ class Follower : public barrett::systems::System {
                 break;
             case State::LINKED:
                 // Active teleop. Only the callee can transition to LINKED
-                control = compute_control(theirJp, theirJv, wamJP, wamJV);
+                control = compute_control(theirJp, theirJv, theirExtTorque, wamJP, wamJV);
                 jtOutputValue->setData(&control);
                 break;
             case State::UNLINKED:
@@ -126,10 +129,11 @@ class Follower : public barrett::systems::System {
     Eigen::Matrix<double, DOF, 1> kp;
     Eigen::Matrix<double, DOF, 1> kd;
 
-    jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jp_type& cur_pos,
-                            const jv_type& cur_vel) {
+    jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jt_type& feedforward,
+                            const jp_type& cur_pos, const jv_type& cur_vel) {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        return pos_term + vel_term;
+        jt_type feedforward_term = 0.0;
+        return pos_term + vel_term - feedforward_term;
     };
 };
