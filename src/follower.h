@@ -117,6 +117,7 @@ class Follower : public barrett::systems::System {
 
     jp_type theirJp;
     jp_type theirJv;
+    jt_type theirExtTorque;
     jt_type control;
 
   private:
@@ -133,7 +134,7 @@ class Follower : public barrett::systems::System {
                             const jp_type& cur_pos, const jv_type& cur_vel) {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        jt_type feedforward_term = 0.0;
+        jt_type feedforward_term = 0.0 * feedforward;
         return pos_term + vel_term - feedforward_term;
     };
 };
