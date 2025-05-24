@@ -7,6 +7,8 @@
  *      Author: Brian Zenowich
  */
 
+// this is for fourchannel
+
 #include <iostream>
 #include <string>
 
