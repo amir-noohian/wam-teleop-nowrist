@@ -51,9 +51,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     jp_type SYNC_POS; // the position each WAM should move to before linking
     if (DOF == 4) {
         SYNC_POS[0] = 0.0;
-        SYNC_POS[1] = -1.5;
+        SYNC_POS[1] = -2;
         SYNC_POS[2] = 0.0;
-        SYNC_POS[3] = 2.7;
+        SYNC_POS[3] = 3.13;
         // SYNC_POS[4] = 0.0;
         // SYNC_POS[5] = 0.0;
         // SYNC_POS[6] = 0.0;
@@ -118,7 +118,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 waitForEnter();
                 leader.tryLink();
                 wam.trackReferenceSignal(leader.wamJPOutput);
-                systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
+                connect(leader.wamJPOutput, wam.input);
+                // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
                 btsleep(0.1); // wait an execution cycle or two
                 if (leader.isLinked()) {

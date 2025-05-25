@@ -100,7 +100,7 @@ class Leader : public barrett::systems::System {
                 break;
             case State::LINKED:
                 // Active teleop. Only the callee can transition to LINKED
-                control = compute_control(theirJp, theirJv, theirExtTorque, wamJP, wamJV);
+                control = compute_control(theirJp, theirJv, theirExtTorque, wamJP, wamJV, extTorque);
                 jtOutputValue->setData(&control);
                 break;
             case State::UNLINKED:
@@ -130,11 +130,19 @@ class Leader : public barrett::systems::System {
     Eigen::Matrix<double, DOF, 1> kp;
     Eigen::Matrix<double, DOF, 1> kd;
 
-    jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jt_type& feedforward,
-                            const jp_type& cur_pos, const jv_type& cur_vel) {
+    jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jt_type& ref_extTorque,
+                            const jp_type& cur_pos, const jv_type& cur_vel, const jt_type& cur_extTorque) {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        jt_type feedforward_term = 0.0 * feedforward;
-        return pos_term + vel_term - feedforward_term;
+        jt_type cur_extTorque_term = 0.1 * cur_extTorque;
+
+        jt_type u1 = pos_term + vel_term; // p-p control with PD
+        jt_type u2 = pos_term + vel_term + cur_extTorque_term; // p-p control with PD and extorqe compensation (it vibrates)
+
+        std::cout << "cur_exTorque = [" << cur_extTorque_term.transpose() << "]" << std::endl;
+        std::cout << "u1 = [" << u1.transpose() << "]" << std::endl;
+        std::cout << "u2 = [" << u2.transpose() << "]" << std::endl;
+
+        return u1;
     };
 };
