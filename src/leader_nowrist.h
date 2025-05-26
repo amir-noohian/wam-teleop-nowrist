@@ -138,15 +138,16 @@ class Leader : public barrett::systems::System {
                             const jp_type& cur_pos, const jv_type& cur_vel, const jt_type& cur_extTorque) {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        jt_type cur_extTorque_term = 0.1 * cur_extTorque;
+        jt_type cur_extTorque_term = cur_extTorque;
 
         jt_type u1 = pos_term + vel_term; // p-p control with PD
-        jt_type u2 = pos_term + vel_term + cur_extTorque_term; // p-p control with PD and extorqe compensation (it vibrates)
+        jt_type u2 = pos_term + vel_term + 0.1 * cur_extTorque_term; // p-p control with PD and extorqe compensation (it vibrates)
         jt_type u3 = 0.0 * pos_term; //p-p with default PID
+        jt_type u4 = 0.4 * cur_extTorque_term; // p-p with default PID and extorque compensation
 
         std::cout << "cur_exTorque = [" << cur_extTorque_term.transpose() << "]" << std::endl;
-        std::cout << "u1 = [" << u1.transpose() << "]" << std::endl;
-        std::cout << "u2 = [" << u2.transpose() << "]" << std::endl;
+        std::cout << "u3 = [" << u3.transpose() << "]" << std::endl;
+        std::cout << "u4 = [" << u4.transpose() << "]" << std::endl;
 
         return u3;
     };
