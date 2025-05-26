@@ -118,7 +118,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 waitForEnter();
                 follower.tryLink();
                 wam.trackReferenceSignal(follower.wamJPOutput);
-                systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
+                connect(follower.wamJPOutput, wam.input);
+                // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
                 btsleep(0.1); // wait an execution cycle or two
                 if (follower.isLinked()) {
