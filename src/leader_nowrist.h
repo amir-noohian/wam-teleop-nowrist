@@ -137,7 +137,7 @@ class Leader : public barrett::systems::System {
         jt_type cur_extTorque_term = 0.1 * cur_extTorque;
 
         jt_type u1 = pos_term + vel_term; // p-p control with PD
-        jt_type u2 = pos_term + vel_term + cur_extTorque_term; // p-p control with PD and extorqe compensation (it vibrates)
+        jt_type u2 = pos_term + vel_term + cur_extTorque_term; // p-p control with PD and extorqe compensation (it vibrates and becomes unstable)
 
         std::cout << "cur_exTorque = [" << cur_extTorque_term.transpose() << "]" << std::endl;
         std::cout << "u1 = [" << u1.transpose() << "]" << std::endl;
