@@ -88,7 +88,7 @@ class Leader : public barrett::systems::System {
             theirJp = received_data->jp;
             theirJv = received_data->jv;
             theirExtTorque = received_data->extTorque.template head<DOF>();
-            theirJPOutput->setData(&theirJPOutputValue);
+            theirJPOutputValue->setData(&theirJp);
 
         } else {
             if (state == State::LINKED) {

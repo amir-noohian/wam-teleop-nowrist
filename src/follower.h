@@ -17,7 +17,7 @@ class Follower : public barrett::systems::System {
     Input<jv_type> wamJVIn;
     Input<jt_type> extTorqueIn;
     Output<jt_type> wamJPOutput;
-    Output<jp_type> theirJPOutput
+    Output<jp_type> theirJPOutput;
 
     enum class State { INIT, LINKED, UNLINKED };
 
@@ -62,7 +62,7 @@ class Follower : public barrett::systems::System {
 
   protected:
     typename Output<jt_type>::Value* jtOutputValue;
-    typename output<jp_type>::Value* theirJPOutputValue;
+    typename Output<jp_type>::Value* theirJPOutputValue;
     jp_type wamJP;
     jv_type wamJV;
     jt_type extTorque;
@@ -88,7 +88,7 @@ class Follower : public barrett::systems::System {
             theirJp = received_data->jp;
             theirJv = received_data->jv;
             theirExtTorque = received_data->extTorque.template head<DOF>();
-            theirJPOutputValue->setData(&theirJPOutputValue);
+            theirJPOutputValue->setData(&theirJp);
 
         } else {
             if (state == State::LINKED) {
