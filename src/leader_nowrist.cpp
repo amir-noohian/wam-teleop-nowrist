@@ -117,7 +117,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 leader.tryLink();
-                wam.trackReferenceSignal(leader.wamJPOutput);
+                wam.trackReferenceSignal(leader.theirJPOutput);
                 connect(leader.wamJPOutput, wam.input);
                 // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 

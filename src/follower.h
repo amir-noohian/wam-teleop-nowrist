@@ -17,6 +17,7 @@ class Follower : public barrett::systems::System {
     Input<jv_type> wamJVIn;
     Input<jt_type> extTorqueIn;
     Output<jt_type> wamJPOutput;
+    Output<jp_type> theirJPOutput
 
     enum class State { INIT, LINKED, UNLINKED };
 
@@ -31,6 +32,7 @@ class Follower : public barrett::systems::System {
         , wamJVIn(this)
         , extTorqueIn(this)
         , wamJPOutput(this, &jtOutputValue)
+        , theirJPOutput(this, &theirJPOutputValue)
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
@@ -60,6 +62,7 @@ class Follower : public barrett::systems::System {
 
   protected:
     typename Output<jt_type>::Value* jtOutputValue;
+    typename output<jp_type>::Value* theirJPOutputValue;
     jp_type wamJP;
     jv_type wamJV;
     jt_type extTorque;
@@ -85,6 +88,7 @@ class Follower : public barrett::systems::System {
             theirJp = received_data->jp;
             theirJv = received_data->jv;
             theirExtTorque = received_data->extTorque.template head<DOF>();
+            theirJPOutputValue->setData(&theirJPOutputValue);
 
         } else {
             if (state == State::LINKED) {
@@ -138,8 +142,9 @@ class Follower : public barrett::systems::System {
 
         jt_type u1 = pos_term + vel_term; // p-p control with PD
         jt_type u2 = pos_term + vel_term + cur_extTorque_term; // p-p control with PD and extorqe compensation 
+        jt_type u3 = 0.0 * pos_term; // p-p with default PID
 
-        return u1;
+        return u3;
 
     };
 };
