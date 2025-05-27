@@ -70,3 +70,12 @@ To turn off, it is recommended to go through the following procedure to ensure p
 3) Shift idle the leader
 4) Repeat for follower. Press `x` to exit the loop
 5) Shift idle the follower.
+
+If you want to fix the wrist, especially the joint close to the joint 4 of the wam, in a seperate terminal session, run
+```bash
+python3 -m moteus_gui.tview --devices=1,2,3
+```
+In order to make the position of the motor 3 to be fixed at zero, run the following in the tview console
+```bash
+3>d pos 0.0 0.0 5.0 a0.5 v0.5
+```

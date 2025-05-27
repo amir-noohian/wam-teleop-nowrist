@@ -68,7 +68,7 @@ class Leader : public barrett::systems::System {
 
         wamJP = wamJPIn.getValue();
         wamJV = wamJVIn.getValue();
-        sendJpMsg << wamJP, 0.0, 0.0, 0.0;
+        sendJpMsg << wamJP, 0.0, 0.0, 0.0; // added zero to send zero joint positions to the wrist part of the 7-dof follower
         sendJvMsg << wamJV, 0.0, 0.0, 0.0;
 
         udp_handler.send(sendJpMsg, sendJvMsg);
@@ -80,17 +80,6 @@ class Leader : public barrett::systems::System {
             // theirJp = received_data->jp;
             // theirJv = received_data->jv;
 
-            // Assuming theirJp and theirJv have the right size (>= 4)
-            // for (int i = 0; i < 4; i++) {
-            //     theirJp[i] = received_data->jp[i];
-            //     theirJv[i] = received_data->jv[i];
-            // }
-
-            // // Zero out the rest if theirJp and theirJv are larger than 4
-            // for (int i = 4; i < theirJp.rows(); i++) {
-            //     theirJp[i] = 0;
-            //     theirJv[i] = 0;
-            // }
             theirJp = received_data->jp.template head<DOF>();
             theirJv = received_data->jv.template head<DOF>();
 
