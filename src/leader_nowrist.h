@@ -31,8 +31,8 @@ class Leader : public barrett::systems::System {
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
-        kp << 750, 1000, 400, 200;
-        kd << 8.3, 8, 3.3, 0.8;
+        kp << 600, 700, 250, 120;
+        kd << 30, 25, 15, 10;
 
         if (em != NULL) {
             em->startManaging(*this);
@@ -77,8 +77,21 @@ class Leader : public barrett::systems::System {
         auto now = std::chrono::steady_clock::now();
         if (received_data && (now - received_data->timestamp <= TIMEOUT_DURATION)) {
 
-            theirJp = received_data->jp;
-            theirJv = received_data->jv;
+            // theirJp = received_data->jp;
+            // theirJv = received_data->jv;
+
+            // Assuming theirJp and theirJv have the right size (>= 4)
+            for (int i = 0; i < 4; i++) {
+                theirJp[i] = received_data->jp[i];
+                theirJv[i] = received_data->jv[i];
+            }
+
+            // Zero out the rest if theirJp and theirJv are larger than 4
+            for (int i = 4; i < theirJp.rows(); i++) {
+                theirJp[i] = 0;
+                theirJv[i] = 0;
+            }
+
         } else {
             if (state == State::LINKED) {
                 std::cout << "lost link" << std::endl;

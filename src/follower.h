@@ -31,8 +31,8 @@ class Follower : public barrett::systems::System {
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
-        kp << 750, 1000, 400, 200;
-        kd << 8.3, 8, 3.3, 0.8;
+        kp << 750, 1000, 400, 200, 10, 10, 2.5;
+        kd << 8.3, 8, 3.3, 0.8, 0.5, 0.5, 0.05;
 
         if (em != NULL) {
             em->startManaging(*this);
@@ -77,8 +77,29 @@ class Follower : public barrett::systems::System {
         auto now = std::chrono::steady_clock::now();
         if (received_data && (now - received_data->timestamp <= TIMEOUT_DURATION)) {
 
-            theirJp = received_data->jp;
-            theirJv = received_data->jv;
+            // theirJp = received_data->jp;
+            // theirJv = received_data->jv;
+
+            // Assume theirJp and received_data->jp have the same size
+            int size = theirJp.rows();
+
+            // Copy all elements one by one
+            for (int i = 0; i < size-3; i++) {
+                theirJp[i] = received_data->jp[i];
+            }
+
+            // Set last 3 elements to zero
+            for (int i = size - 3; i < size; i++) {
+                theirJp[i] = 0;
+            }
+
+            for (int i = 0; i < size-3; i++) {
+                theirJv[i] = received_data->jv[i];
+            }
+            for (int i = size - 3; i < size; i++) {
+                theirJv[i] = 0;
+            }
+
         } else {
             if (state == State::LINKED) {
                 std::cout << "lost link" << std::endl;

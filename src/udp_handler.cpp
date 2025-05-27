@@ -109,3 +109,4 @@ void UDPHandler<DOF>::sendLoop() {
 }
 
 template class UDPHandler<4>; // For DOF=4
+template class UDPHandler<7>; // For DOF=7 

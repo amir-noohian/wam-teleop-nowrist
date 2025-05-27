@@ -38,7 +38,7 @@ source devel/setup.bash
 
 In first terminl, source CAN in a terminal in `amir\catkin_ws\src\wam_teleop`
 ```bash
-source scripts\can_init.sh
+source scripts/can_init.sh
 ```
 
 In a separate terminal session, start the master node with: `roscore`.
