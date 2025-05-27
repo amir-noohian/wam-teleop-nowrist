@@ -75,7 +75,7 @@ If you want to fix the wrist, especially the joint close to the joint 4 of the w
 ```bash
 python3 -m moteus_gui.tview --devices=1,2,3
 ```
-In order to make the position of the motor 3 to be fixed at zero, run the following in the tview console
+In order to make the position of the motor 3 (the motor close to the joint 4 of the wam, equal to joint 5 of the wam) fixed at zero, run the following in the tview console
 ```bash
 3>d pos 0.0 0.0 5.0 a0.5 v0.5
 ```
