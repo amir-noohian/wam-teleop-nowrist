@@ -66,11 +66,11 @@ class Leader : public barrett::systems::System {
     jp_type wamJP;
     jv_type wamJV;
     jt_type extTorque;
-    Eigen::Matrix<double, DOF, 1> sendJpMsg;
-    Eigen::Matrix<double, DOF, 1> sendJvMsg;
-    Eigen::Matrix<double, DOF, 1> sendExtTorqueMsg;
+    Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
+    Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
+    Eigen::Matrix<double, DOF + 3, 1> sendExtTorqueMsg;
 
-    using ReceivedData = typename UDPHandler<DOF>::ReceivedData;
+    using ReceivedData = typename UDPHandler<DOF + 3>::ReceivedData;
 
     virtual void operate() {
 
@@ -78,15 +78,16 @@ class Leader : public barrett::systems::System {
         wamJV = wamJVIn.getValue();
         extTorque = extTorqueIn.getValue();
 
-        sendJpMsg << wamJP;
-        sendJvMsg << wamJV;
+        sendJpMsg << wamJP, 0.0, 0.0, 0.0;
+        sendJvMsg << wamJV, 0.0, 0.0, 0.0;
+        sendExtTorqueMsg << extTorque, 0.0, 0.0, 0.0;
 
         boost::optional<ReceivedData> received_data = udp_handler.getLatestReceived();
         auto now = std::chrono::steady_clock::now();
         if (received_data && (now - received_data->timestamp <= TIMEOUT_DURATION)) {
 
-            theirJp = received_data->jp;
-            theirJv = received_data->jv;
+            theirJp = received_data->jp.template head<DOF>();
+            theirJv = received_data->jv.template head<DOF>();
             theirExtTorque = received_data->extTorque.template head<DOF>();
             theirJPOutputValue->setData(&theirJp);
 
@@ -114,7 +115,7 @@ class Leader : public barrett::systems::System {
                 break;
         }
 
-        sendExtTorqueMsg << control;
+        // sendExtTorqueMsg << control;
 
         udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
     }
@@ -128,7 +129,7 @@ class Leader : public barrett::systems::System {
     DISALLOW_COPY_AND_ASSIGN(Leader);
     std::mutex state_mutex;
     jp_type joint_positions;
-    UDPHandler<DOF> udp_handler;
+    UDPHandler<DOF + 3> udp_handler;
     const std::chrono::milliseconds TIMEOUT_DURATION = std::chrono::milliseconds(20);
     State state;
     Eigen::Matrix<double, DOF, 1> kp;

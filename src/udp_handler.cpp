@@ -113,4 +113,4 @@ void UDPHandler<DOF>::sendLoop() {
     send_socket.close();
 }
 
-template class UDPHandler<4>; // For DOF=4
+template class UDPHandler<7>; // For DOF=7

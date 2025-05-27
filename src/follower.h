@@ -36,8 +36,8 @@ class Follower : public barrett::systems::System {
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
-        kp << 750, 1000, 400, 200;
-        kd << 8.3, 8, 3.3, 0.8;
+        kp << 750, 1000, 400, 200, 10, 10, 2.5;
+        kd << 8.3, 8, 3.3, 0.8, 0.5, 0.5, 0.05;
 
         if (em != NULL) {
             em->startManaging(*this);
@@ -87,7 +87,7 @@ class Follower : public barrett::systems::System {
 
             theirJp = received_data->jp;
             theirJv = received_data->jv;
-            theirExtTorque = received_data->extTorque.template head<DOF>();
+            theirExtTorque = received_data->extTorque;
             theirJPOutputValue->setData(&theirJp);
 
         } else {
@@ -114,7 +114,7 @@ class Follower : public barrett::systems::System {
                 break;
         }
 
-        sendExtTorqueMsg << control;
+        // sendExtTorqueMsg << control;
 
         udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
     }
