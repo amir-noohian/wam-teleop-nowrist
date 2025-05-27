@@ -77,28 +77,31 @@ class Follower : public barrett::systems::System {
         auto now = std::chrono::steady_clock::now();
         if (received_data && (now - received_data->timestamp <= TIMEOUT_DURATION)) {
 
-            // theirJp = received_data->jp;
-            // theirJv = received_data->jv;
+            theirJp = received_data->jp;
+            theirJv = received_data->jv;
 
             // Assume theirJp and received_data->jp have the same size
-            int size = theirJp.rows();
+            // int size = theirJp.rows();
 
-            // Copy all elements one by one
-            for (int i = 0; i < size-3; i++) {
-                theirJp[i] = received_data->jp[i];
-            }
+            // std::cout << received_data->jp << std::endl;
 
-            // Set last 3 elements to zero
-            for (int i = size - 3; i < size; i++) {
-                theirJp[i] = 0;
-            }
 
-            for (int i = 0; i < size-3; i++) {
-                theirJv[i] = received_data->jv[i];
-            }
-            for (int i = size - 3; i < size; i++) {
-                theirJv[i] = 0;
-            }
+            // // Copy all elements one by one
+            // for (int i = 0; i < DOF-3; i++) {
+            //     theirJp[i] = received_data->jp[i];
+            // }
+
+            // // Set last 3 elements to zero
+            // for (int i = DOF - 3; i < DOF; i++) {
+            //     theirJp[i] = 0;
+            // }
+
+            // for (int i = 0; i < DOF -3; i++) {
+            //     theirJv[i] = received_data->jv[i];
+            // }
+            // for (int i = DOF - 3; i < DOF; i++) {
+            //     theirJv[i] = 0;
+            // }
 
         } else {
             if (state == State::LINKED) {

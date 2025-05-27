@@ -59,17 +59,17 @@ class Leader : public barrett::systems::System {
     typename Output<jt_type>::Value* jtOutputValue;
     jp_type wamJP;
     jv_type wamJV;
-    Eigen::Matrix<double, DOF, 1> sendJpMsg;
-    Eigen::Matrix<double, DOF, 1> sendJvMsg;
+    Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
+    Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
 
-    using ReceivedData = typename UDPHandler<DOF>::ReceivedData;
+    using ReceivedData = typename UDPHandler<DOF + 3>::ReceivedData;
 
     virtual void operate() {
 
         wamJP = wamJPIn.getValue();
         wamJV = wamJVIn.getValue();
-        sendJpMsg << wamJP;
-        sendJvMsg << wamJV;
+        sendJpMsg << wamJP, 0.0, 0.0, 0.0;
+        sendJvMsg << wamJV, 0.0, 0.0, 0.0;
 
         udp_handler.send(sendJpMsg, sendJvMsg);
 
@@ -81,16 +81,18 @@ class Leader : public barrett::systems::System {
             // theirJv = received_data->jv;
 
             // Assuming theirJp and theirJv have the right size (>= 4)
-            for (int i = 0; i < 4; i++) {
-                theirJp[i] = received_data->jp[i];
-                theirJv[i] = received_data->jv[i];
-            }
+            // for (int i = 0; i < 4; i++) {
+            //     theirJp[i] = received_data->jp[i];
+            //     theirJv[i] = received_data->jv[i];
+            // }
 
-            // Zero out the rest if theirJp and theirJv are larger than 4
-            for (int i = 4; i < theirJp.rows(); i++) {
-                theirJp[i] = 0;
-                theirJv[i] = 0;
-            }
+            // // Zero out the rest if theirJp and theirJv are larger than 4
+            // for (int i = 4; i < theirJp.rows(); i++) {
+            //     theirJp[i] = 0;
+            //     theirJv[i] = 0;
+            // }
+            theirJp = received_data->jp.template head<DOF>();
+            theirJv = received_data->jv.template head<DOF>();
 
         } else {
             if (state == State::LINKED) {
@@ -125,7 +127,7 @@ class Leader : public barrett::systems::System {
     DISALLOW_COPY_AND_ASSIGN(Leader);
     std::mutex state_mutex;
     jp_type joint_positions;
-    UDPHandler<DOF> udp_handler;
+    UDPHandler<DOF + 3> udp_handler;
     const std::chrono::milliseconds TIMEOUT_DURATION = std::chrono::milliseconds(20);
     State state;
     Eigen::Matrix<double, DOF, 1> kp;
