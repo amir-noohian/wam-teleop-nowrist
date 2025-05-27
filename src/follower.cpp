@@ -24,6 +24,7 @@
 #include "follower.h"
 #include "background_state_publisher.h"
 
+
 using namespace barrett;
 using detail::waitForEnter;
 
