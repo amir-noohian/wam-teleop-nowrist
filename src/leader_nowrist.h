@@ -82,6 +82,8 @@ class Leader : public barrett::systems::System {
         sendJvMsg << wamJV, 0.0, 0.0, 0.0;
         sendExtTorqueMsg << extTorque, 0.0, 0.0, 0.0;
 
+        udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
+
         boost::optional<ReceivedData> received_data = udp_handler.getLatestReceived();
         auto now = std::chrono::steady_clock::now();
         if (received_data && (now - received_data->timestamp <= TIMEOUT_DURATION)) {
@@ -117,7 +119,7 @@ class Leader : public barrett::systems::System {
 
         // sendExtTorqueMsg << control;
 
-        udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
+
     }
 
     jp_type theirJp;

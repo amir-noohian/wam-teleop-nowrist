@@ -80,6 +80,9 @@ class Follower : public barrett::systems::System {
 
         sendJpMsg << wamJP;
         sendJvMsg << wamJV;
+        sendExtTorqueMsg << extTorque;
+
+        udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
 
         boost::optional<ReceivedData> received_data = udp_handler.getLatestReceived();
         auto now = std::chrono::steady_clock::now();
@@ -116,7 +119,7 @@ class Follower : public barrett::systems::System {
 
         // sendExtTorqueMsg << control;
 
-        udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
+
     }
 
     jp_type theirJp;
