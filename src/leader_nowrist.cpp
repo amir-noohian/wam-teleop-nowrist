@@ -90,11 +90,22 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     pm.getExecutionManager()->startManaging(extFilter);
 
     systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
+    
 
     Leader<DOF> leader(pm.getExecutionManager(), remoteHost, rec_port, send_port);
     systems::connect(wam.jpOutput, leader.wamJPIn);
     systems::connect(wam.jvOutput, leader.wamJVIn);
     systems::connect(extFilter.output, leader.extTorqueIn);
+
+    // Create execution manager
+    systems::PrintToStream<jt_type> printSys(pm.getExecutionManager(), "Result: ");
+    // pm.getExecutionManager()->startManaging(printSys);
+
+
+    // std::cout << "jtsum = [" << leader.wamJPIn.getValue() << "]" << std::endl;
+
+
+    // systems::connect(wam.jtSum.output, wam.input);
 
     wam.gravityCompensate();
 
@@ -117,9 +128,11 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 leader.tryLink();
+                systems::connect(leader.wamJPOutput, wam.input);
                 wam.trackReferenceSignal(leader.theirJPOutput);
-                connect(leader.wamJPOutput, wam.input);
-                // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
+                systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
+                systems::connect(wam.jtSum.output, printSys.input);
+
 
                 btsleep(0.1); // wait an execution cycle or two
                 if (leader.isLinked()) {
