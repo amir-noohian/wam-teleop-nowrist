@@ -128,10 +128,11 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 leader.tryLink();
-                systems::connect(leader.wamJPOutput, wam.input);
+                systems::reconnect(leader.wamJPOutput, wam.jtSum.getInput(0));
                 wam.trackReferenceSignal(leader.theirJPOutput);
-                systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
-                systems::connect(wam.jtSum.output, printSys.input);
+                // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
+                // systems::forceConnect(wam.gravity.output, externalTorque.wamGravityIn);
+                systems::connect(externalTorque.wamExternalTorqueOut, printSys.input);
 
 
                 btsleep(0.1); // wait an execution cycle or two
