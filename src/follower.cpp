@@ -94,7 +94,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     Follower<DOF> follower(pm.getExecutionManager(), remoteHost, rec_port, send_port);
     systems::connect(wam.jpOutput, follower.wamJPIn);
     systems::connect(wam.jvOutput, follower.wamJVIn);
-    systems::connect(extFilter.output, follower.extTorqueIn);
+    systems::connect(externalTorque.wamExternalTorqueOut, follower.extTorqueIn);
 
     // systems::connect(wam.jtSum.output, wam.input);
 
@@ -119,7 +119,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 follower.tryLink();
-                systems::reconnect(follower.wamJPOutput, wam.jtSum.getInput(0));
+                // systems::connect(follower.wamJPOutput, wam.input);
+                // systems::reconnect(wam.gravity.output, wam.jtSum.getInput(1));
+
                 wam.trackReferenceSignal(follower.theirJPOutput);
                 // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
                 // systems::forceConnect(wam.gravity.output, externalTorque.wamGravityIn);

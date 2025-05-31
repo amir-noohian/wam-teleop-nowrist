@@ -148,9 +148,9 @@ class Leader : public barrett::systems::System {
         jt_type u3 = 0.0 * pos_term; //p-p with default PID
         jt_type u4 = 0.4 * cur_extTorque_term; // p-p with default PID and extorque compensation
 
-        std::cout << "cur_exTorque = [" << cur_extTorque_term.transpose() << "]" << std::endl;
-        std::cout << "u3 = [" << u3.transpose() << "]" << std::endl;
-        std::cout << "u4 = [" << u4.transpose() << "]" << std::endl;
+        // std::cout << "cur_exTorque = [" << cur_extTorque_term.transpose() << "]" << std::endl;
+        // std::cout << "u3 = [" << u3.transpose() << "]" << std::endl;
+        // std::cout << "u4 = [" << u4.transpose() << "]" << std::endl;
 
         return u3;
     };
