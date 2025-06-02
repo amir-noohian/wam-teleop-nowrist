@@ -38,15 +38,16 @@ class ExternalTorque : public barrett::systems::System {
 
         jtSum = wamTorqueSumIn.getValue();
         gravity = wamGravityIn.getValue();
-        externalTorque = jtSum - gravity;
+        std::cout << "is connected: " << wamTorqueSumIn.isConnected() << std::endl;
+        externalTorque = jtSum + gravity - gravity;
         jtOutputValue->setData(&externalTorque);
 
-        std::cout << "gravity_inextTorque = [" << gravity << "]" << std::endl;
+        // std::cout << "gravity_inextTorque = [" << gravity << "]" << std::endl;
         std::cout << "jtsum_inextTorque = [" << jtSum << "]" << std::endl;
-        std::cout << "extTorque_inextTorque = [" << externalTorque << "]" << std::endl;
+        // std::cout << "extTorque_inextTorque = [" << externalTorque << "]" << std::endl;
 
-        std::cout << "jtSum ptr: " << &jtSum << std::endl;
-        std::cout << "gravity ptr: " << &gravity << std::endl;
+        // std::cout << "jtSum ptr: " << &jtSum << std::endl;
+        // std::cout << "gravity ptr: " << &gravity << std::endl;
         
 
     }

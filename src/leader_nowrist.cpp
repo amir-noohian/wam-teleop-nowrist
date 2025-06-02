@@ -25,6 +25,8 @@
 #include "leader_nowrist.h"
 #include "background_state_publisher.h"
 
+#include "one_step_delay.h"
+
 using namespace barrett;
 using detail::waitForEnter;
 
@@ -82,7 +84,12 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     ExternalTorque<DOF> externalTorque(pm.getExecutionManager());
     systems::connect(wam.gravity.output, externalTorque.wamGravityIn);
-    systems::connect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
+
+    OneStepDelay<DOF> jtSumDelay(pm.getExecutionManager());
+    systems::connect(wam.jtSum.output, jtSumDelay.input);
+
+
+    // systems::connect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
     barrett::systems::FirstOrderFilter<jt_type> extFilter;
     jt_type omega_p(180.0);
@@ -95,12 +102,26 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     Leader<DOF> leader(pm.getExecutionManager(), remoteHost, rec_port, send_port);
     systems::connect(wam.jpOutput, leader.wamJPIn);
     systems::connect(wam.jvOutput, leader.wamJVIn);
-    systems::connect(externalTorque.wamExternalTorqueOut, leader.extTorqueIn);
+    systems::connect(extFilter.output, leader.extTorqueIn);
+
+    systems::connect(leader.wamJPOutput, externalTorque.wamTorqueSumIn);
+
 
     // Create execution manager
     systems::PrintToStream<jt_type> printgravity(pm.getExecutionManager(), "gravity: ");
     systems::PrintToStream<jt_type> printjtSum(pm.getExecutionManager(), "jtSum: ");
     systems::PrintToStream<jt_type> printextTorque(pm.getExecutionManager(), "extTorque: ");
+    systems::PrintToStream<jp_type> printleaderjp(pm.getExecutionManager(), "leaderjp: ");
+    systems::PrintToStream<jt_type> printleaderjptorque(pm.getExecutionManager(), "leaderjptorque: ");
+    systems::PrintToStream<jt_type> printleaderextTorque(pm.getExecutionManager(), "leaderextTorque: ");
+
+    // printing values
+    // systems::connect(wam.gravity.output, printgravity.input);
+    systems::connect(wam.jtSum.output, printjtSum.input);
+    systems::connect(externalTorque.wamExternalTorqueOut, printextTorque.input);
+    // systems::connect(leader.theirJPOutput, printleaderjp.input);
+    // systems::connect(leader.wamJPOutput, printleaderjptorque.input);
+    // systems::connect(leader.extTorqueOut, printleaderextTorque.input);
 
 
     // systems::connect(wam.jtSum.output, wam.input);
@@ -127,17 +148,18 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 waitForEnter();
                 leader.tryLink();
                 // systems::connect(leader.wamJPOutput, wam.input);
-                // systems::reconnect(wam.gravity.output, wam.jtSum.getInput(1));
 
-                wam.trackReferenceSignal(leader.theirJPOutput);
-                systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
-                systems::forceConnect(wam.gravity.output, externalTorque.wamGravityIn);
-                systems::forceConnect(externalTorque.wamExternalTorqueOut, leader.extTorqueIn);
+                systems::connect(leader.wamJPOutput, wam.jtSum.getInput(2));
+                // wam.trackReferenceSignal(leader.wamJPOutput);
 
-                // printing values
-                systems::connect(wam.gravity.output, printgravity.input);
-                systems::connect(wam.jtSum.output, printjtSum.input);
-                systems::connect(externalTorque.wamExternalTorqueOut, printextTorque.input);
+                // pm.getExecutionManager()->stopManaging(externalTorque);
+                // pm.getExecutionManager()->startManaging(externalTorque);
+                
+                // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
+                // systems::forceConnect(wam.gravity.output, externalTorque.wamGravityIn);
+                // systems::forceConnect(externalTorque.wamExternalTorqueOut, leader.extTorqueIn);
+
+
                 
 
 

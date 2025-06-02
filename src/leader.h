@@ -39,6 +39,7 @@ class Leader : public barrett::systems::System {
 
         kp << 600, 500, 250, 120;
         kd << 30, 20, 15, 5;
+        lastOuput << 0, 0, 0, 0;
 
         if (em != NULL) {
             em->startManaging(*this);
@@ -47,6 +48,10 @@ class Leader : public barrett::systems::System {
 
     virtual ~Leader() {
         this->mandatoryCleanUp();
+    }
+
+    virtual void setValueUndefined() {
+        jtOutputValue->setData(&lastOutput);
     }
 
     bool isLinked() const {
@@ -66,6 +71,7 @@ class Leader : public barrett::systems::System {
     jp_type wamJP;
     jv_type wamJV;
     jt_type extTorque;
+    jt_type lastOutput;
     Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendExtTorqueMsg;
@@ -115,18 +121,23 @@ class Leader : public barrett::systems::System {
                 // Used so haptic wirst holds on moveTo command
                 control.setZero();
                 jtOutputValue->setData(&control);
+                lastOutput = control;
                 break;
             case State::LINKED:
                 // Active teleop. Only the callee can transition to LINKED
                 hw->setPosition(theirWristJp);
                 control = compute_control(theirJp, theirJv, theirExtTorque, wamJP, wamJV);
                 jtOutputValue->setData(&control);
+                lastOutput = control;
+
                 break;
             case State::UNLINKED:
                 // Changed to unlinked with either timeout or callee.
                 hw->setPosition(wristJP);
                 control.setZero();
                 jtOutputValue->setData(&control);
+                lastOutput = control;
+
                 break;
         }
     }
@@ -152,7 +163,8 @@ class Leader : public barrett::systems::System {
                             const jp_type& cur_pos, const jv_type& cur_vel) {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        jt_type feedforward_term = 0.4 * feedforward;
+        jt_type feedforward_term = 0.0 * feedforward;
+
         return pos_term + vel_term - feedforward_term;
     };
 };

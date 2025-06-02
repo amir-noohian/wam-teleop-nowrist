@@ -38,7 +38,10 @@ class Leader : public barrett::systems::System {
 
         kp << 750, 1000, 400, 200;
         kd << 8.3, 8, 3.3, 0.8;
-
+        lastOutput[0] = 0.0;
+        lastOutput[1] = 0.0;
+        lastOutput[2] = 0.0;
+        lastOutput[3] = 0.0;
         if (em != NULL) {
             em->startManaging(*this);
         }
@@ -51,6 +54,7 @@ class Leader : public barrett::systems::System {
     bool isLinked() const {
         return state == State::LINKED;
     }
+
     void tryLink() {
         BARRETT_SCOPED_LOCK(this->getEmMutex());
         state = State::LINKED;
@@ -60,12 +64,19 @@ class Leader : public barrett::systems::System {
         state = State::UNLINKED;
     }
 
+    virtual void invalidateOutputs() {
+        jtOutputValue->setData(&lastOutput);
+        std::cout << "called" << std::endl;
+    }
+
   protected:
     typename Output<jt_type>::Value* jtOutputValue;
     typename Output<jp_type>::Value* theirJPOutputValue;
     jp_type wamJP;
     jv_type wamJV;
     jt_type extTorque;
+    jt_type lastOutput;
+
     Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendExtTorqueMsg;
@@ -88,8 +99,15 @@ class Leader : public barrett::systems::System {
         auto now = std::chrono::steady_clock::now();
         if (received_data && (now - received_data->timestamp <= TIMEOUT_DURATION)) {
 
-            theirJp = received_data->jp.template head<DOF>();
-            theirJv = received_data->jv.template head<DOF>();
+            theirJp[0] = 0.0;
+            theirJp[1] = -1.95;
+            theirJp[2] = 0.0;
+            theirJp[3] = 3.07;
+
+            theirJv[0] = 0.0;
+            theirJv[1] = 0.0;
+            theirJv[2] = 0.0;
+            theirJv[3] = 0.0;
             theirExtTorque = received_data->extTorque.template head<DOF>();
             theirJPOutputValue->setData(&theirJp);
 
@@ -104,16 +122,21 @@ class Leader : public barrett::systems::System {
             case State::INIT:
                 control.setZero();
                 jtOutputValue->setData(&control);
+                lastOutput = control;
                 break;
             case State::LINKED:
                 // Active teleop. Only the callee can transition to LINKED
                 control = compute_control(theirJp, theirJv, theirExtTorque, wamJP, wamJV, extTorque);
                 jtOutputValue->setData(&control);
+                lastOutput = control;
+
                 break;
             case State::UNLINKED:
                 // Changed to unlinked with either timeout or callee.
                 control.setZero();
                 jtOutputValue->setData(&control);
+                lastOutput = control;
+
                 break;
         }
 
@@ -123,7 +146,7 @@ class Leader : public barrett::systems::System {
     }
 
     jp_type theirJp;
-    jp_type theirJv;
+    jv_type theirJv;
     jt_type theirExtTorque;
     jt_type control;
 
@@ -146,12 +169,12 @@ class Leader : public barrett::systems::System {
         jt_type u1 = pos_term + vel_term; // p-p control with PD
         jt_type u2 = pos_term + vel_term + 0.1 * cur_extTorque_term; // p-p control with PD and extorqe compensation (it vibrates)
         jt_type u3 = 0.0 * pos_term; //p-p with default PID
-        jt_type u4 = 0.4 * cur_extTorque_term; // p-p with default PID and extorque compensation
+        jt_type u4 = 1 * cur_extTorque_term; // p-p with default PID and extorque compensation
 
         // std::cout << "cur_exTorque = [" << cur_extTorque_term.transpose() << "]" << std::endl;
         // std::cout << "u3 = [" << u3.transpose() << "]" << std::endl;
-        // std::cout << "u4 = [" << u4.transpose() << "]" << std::endl;
+        // std::cout << "cur_extTorque_term = [" << u4.transpose() << "]" << std::endl;
 
-        return u3;
+        return u1;
     };
 };

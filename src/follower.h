@@ -123,7 +123,7 @@ class Follower : public barrett::systems::System {
     }
 
     jp_type theirJp;
-    jp_type theirJv;
+    jv_type theirJv;
     jt_type theirExtTorque;
     jt_type control;
 
