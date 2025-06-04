@@ -17,7 +17,7 @@ public:
 
     struct ReceivedData {
         jp_type jp;
-        jp_type jv;
+        jv_type jv;
         jt_type extTorque;
         std::chrono::steady_clock::time_point timestamp;
     };

@@ -17,6 +17,7 @@ class Follower : public barrett::systems::System {
     Input<jv_type> wamJVIn;
     Input<jt_type> extTorqueIn;
     Output<jt_type> wamJPOutput;
+    Output<jp_type> theirJPOutput;
 
     enum class State { INIT, LINKED, UNLINKED };
 
@@ -31,11 +32,12 @@ class Follower : public barrett::systems::System {
         , wamJVIn(this)
         , extTorqueIn(this)
         , wamJPOutput(this, &jtOutputValue)
+        , theirJPOutput(this, &theirJPOutputValue)
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
-        kp << 750, 1000, 400, 200;
-        kd << 8.3, 8, 3.3, 0.8;
+        kp << 750, 1000, 400, 200, 10, 10, 2.5;
+        kd << 8.3, 8, 3.3, 0.8, 0.5, 0.5, 0.05;
 
         if (em != NULL) {
             em->startManaging(*this);
@@ -60,6 +62,7 @@ class Follower : public barrett::systems::System {
 
   protected:
     typename Output<jt_type>::Value* jtOutputValue;
+    typename Output<jp_type>::Value* theirJPOutputValue;
     jp_type wamJP;
     jv_type wamJV;
     jt_type extTorque;
@@ -77,6 +80,9 @@ class Follower : public barrett::systems::System {
 
         sendJpMsg << wamJP;
         sendJvMsg << wamJV;
+        sendExtTorqueMsg << extTorque;
+
+        udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
 
         boost::optional<ReceivedData> received_data = udp_handler.getLatestReceived();
         auto now = std::chrono::steady_clock::now();
@@ -84,7 +90,8 @@ class Follower : public barrett::systems::System {
 
             theirJp = received_data->jp;
             theirJv = received_data->jv;
-            theirExtTorque = received_data->extTorque.template head<DOF>();
+            theirExtTorque = received_data->extTorque;
+            theirJPOutputValue->setData(&theirJp);
 
         } else {
             if (state == State::LINKED) {
@@ -110,13 +117,13 @@ class Follower : public barrett::systems::System {
                 break;
         }
 
-        sendExtTorqueMsg << control;
+        // sendExtTorqueMsg << control;
 
-        udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
+        // udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
     }
 
     jp_type theirJp;
-    jp_type theirJv;
+    jv_type theirJv;
     jt_type theirExtTorque;
     jt_type control;
 
@@ -135,10 +142,11 @@ class Follower : public barrett::systems::System {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
         jt_type cur_extTorque_term = 0.1 * cur_extTorque;
+        jt_type u3 = 0.0 * pos_term;
 
         jt_type u1 = pos_term + vel_term; // p-p control with PD
         jt_type u2 = pos_term + vel_term + cur_extTorque_term; // p-p control with PD and extorqe compensation 
 
-        return u1;
+        return u3;
     };
 };

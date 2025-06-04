@@ -49,17 +49,17 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     BARRETT_UNITS_TEMPLATE_TYPEDEFS(DOF);
 
     jp_type SYNC_POS; // the position each WAM should move to before linking
-    if (DOF == 4) {
+    if (DOF == 7) {
         SYNC_POS[0] = 0.0;
-        SYNC_POS[1] = -2.0;
+        SYNC_POS[1] = -1.95;
         SYNC_POS[2] = 0.0;
-        SYNC_POS[3] = 3.13;
-        // SYNC_POS[4] = 0.0;
-        // SYNC_POS[5] = 0.0;
-        // SYNC_POS[6] = 0.0;
+        SYNC_POS[3] = 3.07;
+        SYNC_POS[4] = 0.0;
+        SYNC_POS[5] = 0.0;
+        SYNC_POS[6] = 0.0;
 
     } else {
-        printf("Error: 4 DOF supported\n");
+        printf("Error: 7 DOF supported\n");
         return false;
     }
 
@@ -117,8 +117,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 follower.tryLink();
-                // wam.trackReferenceSignal(follower.wamJPOutput);
-                connect(follower.wamJPOutput, wam.input);
+                wam.trackReferenceSignal(follower.theirJPOutput);
+                // connect(follower.wamJPOutput, wam.input);
                 // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
                 btsleep(0.1); // wait an execution cycle or two

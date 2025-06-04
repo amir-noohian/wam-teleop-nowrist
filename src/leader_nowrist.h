@@ -17,6 +17,7 @@ class Leader : public barrett::systems::System {
     Input<jv_type> wamJVIn;
     Input<jt_type> extTorqueIn;
     Output<jt_type> wamJPOutput;
+    Output<jp_type> theirJPOutput;
 
     enum class State { INIT, LINKED, UNLINKED };
 
@@ -31,11 +32,13 @@ class Leader : public barrett::systems::System {
         , wamJVIn(this)
         , extTorqueIn(this)
         , wamJPOutput(this, &jtOutputValue)
+        , theirJPOutput(this, &theirJPOutputValue)
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
         kp << 750, 1000, 400, 200;
         kd << 8.3, 8, 3.3, 0.8;
+
 
         if (em != NULL) {
             em->startManaging(*this);
@@ -45,6 +48,9 @@ class Leader : public barrett::systems::System {
     virtual ~Leader() {
         this->mandatoryCleanUp();
     }
+
+    virtual bool inputsValid() {return true;}
+
 
     bool isLinked() const {
         return state == State::LINKED;
@@ -60,31 +66,47 @@ class Leader : public barrett::systems::System {
 
   protected:
     typename Output<jt_type>::Value* jtOutputValue;
+    typename Output<jp_type>::Value* theirJPOutputValue;
     jp_type wamJP;
     jv_type wamJV;
     jt_type extTorque;
-    Eigen::Matrix<double, DOF, 1> sendJpMsg;
-    Eigen::Matrix<double, DOF, 1> sendJvMsg;
-    Eigen::Matrix<double, DOF, 1> sendExtTorqueMsg;
+    Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
+    Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
+    Eigen::Matrix<double, DOF + 3, 1> sendExtTorqueMsg;
 
-    using ReceivedData = typename UDPHandler<DOF>::ReceivedData;
+    using ReceivedData = typename UDPHandler<DOF + 3>::ReceivedData;
 
     virtual void operate() {
 
         wamJP = wamJPIn.getValue();
         wamJV = wamJVIn.getValue();
-        extTorque = extTorqueIn.getValue();
+        if (extTorqueIn.valueDefined()) {
+            extTorque = extTorqueIn.getValue();
+            // std::cout << "defined" << std::endl;
 
-        sendJpMsg << wamJP;
-        sendJvMsg << wamJV;
+        } else {
+            // std::cout << "not defined" << std::endl;
+
+            extTorque << 0.0, 0.0, 0,0, 0.0;
+        }
+
+        sendJpMsg << wamJP, 0.0, 0.0, 0.0;
+        sendJvMsg << wamJV, 0.0, 0.0, 0.0;
+        sendExtTorqueMsg << extTorque, 0.0, 0.0, 0.0;
+
+
+        udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
 
         boost::optional<ReceivedData> received_data = udp_handler.getLatestReceived();
         auto now = std::chrono::steady_clock::now();
         if (received_data && (now - received_data->timestamp <= TIMEOUT_DURATION)) {
 
-            theirJp = received_data->jp;
-            theirJv = received_data->jv;
+            theirJp = received_data->jp.template head<DOF>();
+            theirJv = received_data->jv.template head<DOF>();
             theirExtTorque = received_data->extTorque.template head<DOF>();
+
+            theirJPOutputValue->setData(&theirJp);
+
 
         } else {
             if (state == State::LINKED) {
@@ -110,13 +132,13 @@ class Leader : public barrett::systems::System {
                 break;
         }
 
-        sendExtTorqueMsg << control;
+        // sendExtTorqueMsg << control;
 
-        udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
+
     }
 
     jp_type theirJp;
-    jp_type theirJv;
+    jv_type theirJv;
     jt_type theirExtTorque;
     jt_type control;
 
@@ -124,7 +146,7 @@ class Leader : public barrett::systems::System {
     DISALLOW_COPY_AND_ASSIGN(Leader);
     std::mutex state_mutex;
     jp_type joint_positions;
-    UDPHandler<DOF> udp_handler;
+    UDPHandler<DOF + 3> udp_handler;
     const std::chrono::milliseconds TIMEOUT_DURATION = std::chrono::milliseconds(20);
     State state;
     Eigen::Matrix<double, DOF, 1> kp;
@@ -134,15 +156,16 @@ class Leader : public barrett::systems::System {
                             const jp_type& cur_pos, const jv_type& cur_vel, const jt_type& cur_extTorque) {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        jt_type cur_extTorque_term = 0.1 * cur_extTorque;
+        jt_type cur_extTorque_term = 1 * cur_extTorque;
 
         jt_type u1 = pos_term + vel_term; // p-p control with PD
         jt_type u2 = pos_term + vel_term + cur_extTorque_term; // p-p control with PD and extorqe compensation (it vibrates and becomes unstable)
+        jt_type u3 = 0.0 * pos_term;
 
         std::cout << "cur_exTorque = [" << cur_extTorque_term.transpose() << "]" << std::endl;
-        std::cout << "u1 = [" << u1.transpose() << "]" << std::endl;
-        std::cout << "u2 = [" << u2.transpose() << "]" << std::endl;
+        // std::cout << "u1 = [" << u1.transpose() << "]" << std::endl;
+        // std::cout << "u2 = [" << u2.transpose() << "]" << std::endl;
 
-        return u1;
+        return u3;
     };
 };

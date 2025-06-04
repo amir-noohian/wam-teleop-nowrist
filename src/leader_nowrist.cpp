@@ -51,9 +51,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     jp_type SYNC_POS; // the position each WAM should move to before linking
     if (DOF == 4) {
         SYNC_POS[0] = 0.0;
-        SYNC_POS[1] = -2.0;
+        SYNC_POS[1] = -1.95;
         SYNC_POS[2] = 0.0;
-        SYNC_POS[3] = 3.13;
+        SYNC_POS[3] = 3.07;
         // SYNC_POS[4] = 0.0;
         // SYNC_POS[5] = 0.0;
         // SYNC_POS[6] = 0.0;
@@ -80,23 +80,47 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     ros::init(argc, argv, "leader_nowrist");
     BackgroundStatePublisher<DOF> state_publisher(pm.getExecutionManager(), wam);
 
-    ExternalTorque<DOF> externalTorque(pm.getExecutionManager());
-    systems::connect(wam.gravity.output, externalTorque.wamGravityIn);
-    systems::connect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
+    barrett::systems::Summer<jt_type, 3> customjtSum;
+    pm.getExecutionManager()->startManaging(customjtSum);
 
+    ExternalTorque<DOF> externalTorque(pm.getExecutionManager());
+    
     barrett::systems::FirstOrderFilter<jt_type> extFilter;
     jt_type omega_p(180.0);
     extFilter.setLowPass(omega_p);
     pm.getExecutionManager()->startManaging(extFilter);
 
-    systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
-
     Leader<DOF> leader(pm.getExecutionManager(), remoteHost, rec_port, send_port);
+
+    systems::PrintToStream<jt_type> printextTorque(pm.getExecutionManager(), "extTorque: ");
+    systems::PrintToStream<jt_type> printjtSum(pm.getExecutionManager(), "jtSum: ");
+    systems::PrintToStream<jt_type> printcustomjtSum(pm.getExecutionManager(), "customjtSum: ");
+
+
+
+    wam.gravityCompensate();
+
     systems::connect(wam.jpOutput, leader.wamJPIn);
     systems::connect(wam.jvOutput, leader.wamJVIn);
     systems::connect(extFilter.output, leader.extTorqueIn);
 
-    wam.gravityCompensate();
+    systems::connect(leader.wamJPOutput, customjtSum.getInput(0));
+    systems::connect(wam.gravity.output, customjtSum.getInput(1));
+    systems::connect(wam.supervisoryController.output, customjtSum.getInput(2));
+
+    systems::connect(wam.gravity.output, externalTorque.wamGravityIn);
+    systems::connect(customjtSum.output, externalTorque.wamTorqueSumIn);
+
+    systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
+
+    systems::connect(extFilter.output, printextTorque.input);
+    systems::connect(extFilter.output, printjtSum.input);
+    systems::connect(extFilter.output, printcustomjtSum.input);
+
+
+
+
+
 
     std::string line;
     v_type gainTmp;
@@ -117,7 +141,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 leader.tryLink();
-                // wam.trackReferenceSignal(leader.wamJPOutput);
+                wam.trackReferenceSignal(leader.theirJPOutput);
                 connect(leader.wamJPOutput, wam.input); // when I don't use this, the output value for extTorque is zero, even when we have the forceConnect in the next line.
                 // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
