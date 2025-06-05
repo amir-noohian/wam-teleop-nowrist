@@ -53,7 +53,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
         SYNC_POS[0] = 0.0;
         SYNC_POS[1] = -1.95;
         SYNC_POS[2] = 0.0;
-        SYNC_POS[3] = 3.07;
+        SYNC_POS[3] = 2.97;
         // SYNC_POS[4] = 0.0;
         // SYNC_POS[5] = 0.0;
         // SYNC_POS[6] = 0.0;
@@ -96,10 +96,6 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::PrintToStream<jt_type> printjtSum(pm.getExecutionManager(), "jtSum: ");
     systems::PrintToStream<jt_type> printcustomjtSum(pm.getExecutionManager(), "customjtSum: ");
 
-
-
-    wam.gravityCompensate();
-
     systems::connect(wam.jpOutput, leader.wamJPIn);
     systems::connect(wam.jvOutput, leader.wamJVIn);
     systems::connect(extFilter.output, leader.extTorqueIn);
@@ -114,12 +110,11 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
 
     systems::connect(extFilter.output, printextTorque.input);
-    systems::connect(extFilter.output, printjtSum.input);
-    systems::connect(extFilter.output, printcustomjtSum.input);
+    // systems::connect(extFilter.output, printjtSum.input);
+    // systems::connect(extFilter.output, printcustomjtSum.input);
 
 
-
-
+    wam.gravityCompensate();
 
 
     std::string line;

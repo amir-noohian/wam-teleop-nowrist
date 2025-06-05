@@ -86,7 +86,6 @@ class Leader : public barrett::systems::System {
 
         } else {
             // std::cout << "not defined" << std::endl;
-
             extTorque << 0.0, 0.0, 0,0, 0.0;
         }
 
@@ -160,12 +159,15 @@ class Leader : public barrett::systems::System {
 
         jt_type u1 = pos_term + vel_term; // p-p control with PD
         jt_type u2 = pos_term + vel_term + cur_extTorque_term; // p-p control with PD and extorqe compensation (it vibrates and becomes unstable)
-        jt_type u3 = 0.0 * pos_term;
+        jt_type u3 = 0.0 * pos_term; // zero feedforward
+        jt_type u4 = 0.5 * cur_extTorque_term; // only compensating external torque
+        jt_type u5 = -0.5 * (cur_extTorque + ref_extTorque); // only a controller on force
+        jt_type u6 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque_term; // both feedforward and force controller
 
-        std::cout << "cur_exTorque = [" << cur_extTorque_term.transpose() << "]" << std::endl;
+        // std::cout << "cur_exTorque = [" << cur_extTorque_term.transpose() << "]" << std::endl;
         // std::cout << "u1 = [" << u1.transpose() << "]" << std::endl;
         // std::cout << "u2 = [" << u2.transpose() << "]" << std::endl;
 
-        return u3;
+        return u6;
     };
 };

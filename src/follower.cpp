@@ -53,7 +53,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
         SYNC_POS[0] = 0.0;
         SYNC_POS[1] = -1.95;
         SYNC_POS[2] = 0.0;
-        SYNC_POS[3] = 3.07;
+        SYNC_POS[3] = 2.97;
         SYNC_POS[4] = 0.0;
         SYNC_POS[5] = 0.0;
         SYNC_POS[6] = 0.0;
@@ -80,21 +80,38 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     ros::init(argc, argv, "follower");
     BackgroundStatePublisher<DOF> state_publisher(pm.getExecutionManager(), wam);
 
-    ExternalTorque<DOF> externalTorque(pm.getExecutionManager());
-    systems::connect(wam.gravity.output, externalTorque.wamGravityIn);
-    systems::connect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
+    barrett::systems::Summer<jt_type, 3> customjtSum;
+    pm.getExecutionManager()->startManaging(customjtSum);
 
+    ExternalTorque<DOF> externalTorque(pm.getExecutionManager());
+    
     barrett::systems::FirstOrderFilter<jt_type> extFilter;
     jt_type omega_p(180.0);
     extFilter.setLowPass(omega_p);
     pm.getExecutionManager()->startManaging(extFilter);
 
-    systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
-
     Follower<DOF> follower(pm.getExecutionManager(), remoteHost, rec_port, send_port);
+
+    systems::PrintToStream<jt_type> printextTorque(pm.getExecutionManager(), "extTorque: ");
+    // systems::PrintToStream<jt_type> printjtSum(pm.getExecutionManager(), "jtSum: ");
+    // systems::PrintToStream<jt_type> printcustomjtSum(pm.getExecutionManager(), "customjtSum: ");
+
     systems::connect(wam.jpOutput, follower.wamJPIn);
     systems::connect(wam.jvOutput, follower.wamJVIn);
     systems::connect(extFilter.output, follower.extTorqueIn);
+
+    systems::connect(follower.wamJPOutput, customjtSum.getInput(0));
+    systems::connect(wam.gravity.output, customjtSum.getInput(1));
+    systems::connect(wam.supervisoryController.output, customjtSum.getInput(2));
+
+    systems::connect(wam.gravity.output, externalTorque.wamGravityIn);
+    systems::connect(customjtSum.output, externalTorque.wamTorqueSumIn);
+
+    systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
+
+    systems::connect(extFilter.output, printextTorque.input);
+    // systems::connect(extFilter.output, printjtSum.input);
+    // systems::connect(extFilter.output, printcustomjtSum.input);
 
     wam.gravityCompensate();
 
@@ -118,7 +135,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 waitForEnter();
                 follower.tryLink();
                 wam.trackReferenceSignal(follower.theirJPOutput);
-                // connect(follower.wamJPOutput, wam.input);
+                connect(follower.wamJPOutput, wam.input);
                 // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
                 btsleep(0.1); // wait an execution cycle or two
