@@ -92,9 +92,14 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     Leader<DOF> leader(pm.getExecutionManager(), remoteHost, rec_port, send_port);
 
+    jt_type maxRate; // Nm · s-1 per joint
+    maxRate << 50, 50, 50, 50;
+    systems::RateLimiter<jt_type> wamJPOutputRamp(maxRate, "ffRamp");
+
     systems::PrintToStream<jt_type> printextTorque(pm.getExecutionManager(), "extTorque: ");
-    systems::PrintToStream<jt_type> printjtSum(pm.getExecutionManager(), "jtSum: ");
-    systems::PrintToStream<jt_type> printcustomjtSum(pm.getExecutionManager(), "customjtSum: ");
+    systems::PrintToStream<jt_type> printSC(pm.getExecutionManager(), "SC: ");
+    // systems::PrintToStream<jt_type> printjtSum(pm.getExecutionManager(), "jtSum: ");
+    // systems::PrintToStream<jt_type> printcustomjtSum(pm.getExecutionManager(), "customjtSum: ");
 
     systems::connect(wam.jpOutput, leader.wamJPIn);
     systems::connect(wam.jvOutput, leader.wamJVIn);
@@ -110,6 +115,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
 
     systems::connect(extFilter.output, printextTorque.input);
+    systems::connect(wam.supervisoryController.output, printSC.input);
     // systems::connect(extFilter.output, printjtSum.input);
     // systems::connect(extFilter.output, printcustomjtSum.input);
 
@@ -131,13 +137,15 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
             if (leader.isLinked()) {
                 leader.unlink();
             } else {
-                wam.moveTo(SYNC_POS, false);
+                wam.moveTo(SYNC_POS, true);
 
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 leader.tryLink();
                 wam.trackReferenceSignal(leader.theirJPOutput);
-                connect(leader.wamJPOutput, wam.input); // when I don't use this, the output value for extTorque is zero, even when we have the forceConnect in the next line.
+                // connect(leader.wamJPOutput, wam.input);
+                connect(leader.wamJPOutput, wamJPOutputRamp.input); // one of the problem with the joint limiter is that it adds delay in applying external torque to the robot.
+                connect(wamJPOutputRamp.output, wam.input);
                 // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
                 btsleep(0.1); // wait an execution cycle or two

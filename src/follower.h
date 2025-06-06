@@ -149,14 +149,14 @@ class Follower : public barrett::systems::System {
                             const jp_type& cur_pos, const jv_type& cur_vel, const jt_type& cur_extTorque) {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        jt_type cur_extTorque_term = 1 * cur_extTorque;
+        // jt_type cur_extTorque_term = 1 * cur_extTorque;
 
         jt_type u1 = pos_term + vel_term; // p-p control with PD
-        jt_type u2 = pos_term + vel_term + cur_extTorque_term; // p-p control with PD and extorqe compensation 
-        jt_type u3 = 0.0 * pos_term; //zero feedforward
-        jt_type u4 = 0.5 * cur_extTorque_term; // only compensating external torque
+        jt_type u2 = pos_term + vel_term + cur_extTorque; // p-p control with PD and extorqe compensation 
+        jt_type u3 = 0.0 * cur_extTorque; //zero feedforward
+        jt_type u4 = 0.5 * cur_extTorque; // only compensating external torque
         jt_type u5 = -0.5 * (cur_extTorque + ref_extTorque); // only a controller on force
-        jt_type u6 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque_term; // both feedforward and force controller
+        jt_type u6 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque; // both feedforward and force controller
 
 
         return u6;

@@ -92,8 +92,12 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     Follower<DOF> follower(pm.getExecutionManager(), remoteHost, rec_port, send_port);
 
+    jt_type maxRate; // Nm · s-1 per joint
+    maxRate << 50, 50, 50, 50;
+    systems::RateLimiter<jt_type> wamJPOutputRamp(maxRate, "ffRamp");
+
     systems::PrintToStream<jt_type> printextTorque(pm.getExecutionManager(), "extTorque: ");
-    // systems::PrintToStream<jt_type> printjtSum(pm.getExecutionManager(), "jtSum: ");
+    systems::PrintToStream<jt_type> printSC(pm.getExecutionManager(), "SC: ");
     // systems::PrintToStream<jt_type> printcustomjtSum(pm.getExecutionManager(), "customjtSum: ");
 
     systems::connect(wam.jpOutput, follower.wamJPIn);
@@ -110,7 +114,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
 
     systems::connect(extFilter.output, printextTorque.input);
-    // systems::connect(extFilter.output, printjtSum.input);
+    systems::connect(wam.supervisoryController.output, printSC.input);
     // systems::connect(extFilter.output, printcustomjtSum.input);
 
     wam.gravityCompensate();
@@ -129,13 +133,15 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
             if (follower.isLinked()) {
                 follower.unlink();
             } else {
-                wam.moveTo(SYNC_POS, false);
+                wam.moveTo(SYNC_POS, true);
 
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 follower.tryLink();
                 wam.trackReferenceSignal(follower.theirJPOutput);
-                connect(follower.wamJPOutput, wam.input);
+                // connect(follower.wamJPOutput, wam.input);
+                connect(follower.wamJPOutput, wamJPOutputRamp.input); // one of the problem with the joint limiter is that it adds delay in applying external torque to the robot.
+                connect(wamJPOutputRamp.output, wam.input);
                 // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
                 btsleep(0.1); // wait an execution cycle or two
