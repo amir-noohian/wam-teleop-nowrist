@@ -24,6 +24,8 @@
 
 #include "leader_nowrist.h"
 #include "background_state_publisher.h"
+#include "leader_dynamics.h"
+#include "dynamic_external_torque.h"
 
 using namespace barrett;
 using detail::waitForEnter;
@@ -83,12 +85,26 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     barrett::systems::Summer<jt_type, 3> customjtSum;
     pm.getExecutionManager()->startManaging(customjtSum);
 
+    LeaderDynamics<DOF> leaderDynamics(pm.getExecutionManager());
+
     ExternalTorque<DOF> externalTorque(pm.getExecutionManager());
+
+    DynamicExternalTorque<DOF> dynamicExternalTorque(pm.getExecutionManager());
     
     barrett::systems::FirstOrderFilter<jt_type> extFilter;
     jt_type omega_p(180.0);
     extFilter.setLowPass(omega_p);
     pm.getExecutionManager()->startManaging(extFilter);
+
+    barrett::systems::FirstOrderFilter<jt_type> dynamicExtFilter;
+    // jt_type omega_p(180.0);
+    dynamicExtFilter.setLowPass(omega_p);
+    pm.getExecutionManager()->startManaging(dynamicExtFilter);
+
+    ja_type ja;
+    ja.setConstant(0.0);
+    systems::Constant<ja_type> zeroAcceleration(ja);
+    pm.getExecutionManager()->startManaging(zeroAcceleration);
 
     Leader<DOF> leader(pm.getExecutionManager(), remoteHost, rec_port, send_port);
 
@@ -96,14 +112,20 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     maxRate << 50, 50, 50, 50;
     systems::RateLimiter<jt_type> wamJPOutputRamp(maxRate, "ffRamp");
 
+    systems::PrintToStream<jt_type> printdynamicextTorque(pm.getExecutionManager(), "dynamicextTorque: ");
     systems::PrintToStream<jt_type> printextTorque(pm.getExecutionManager(), "extTorque: ");
+    systems::PrintToStream<jt_type> printdynamicoutput(pm.getExecutionManager(), "dynamicoutput: ");
     systems::PrintToStream<jt_type> printSC(pm.getExecutionManager(), "SC: ");
     // systems::PrintToStream<jt_type> printjtSum(pm.getExecutionManager(), "jtSum: ");
     // systems::PrintToStream<jt_type> printcustomjtSum(pm.getExecutionManager(), "customjtSum: ");
 
     systems::connect(wam.jpOutput, leader.wamJPIn);
     systems::connect(wam.jvOutput, leader.wamJVIn);
-    systems::connect(extFilter.output, leader.extTorqueIn);
+    systems::connect(dynamicExtFilter.output, leader.extTorqueIn);
+
+    systems::connect(wam.jpOutput, leaderDynamics.jpInputDynamics);
+    systems::connect(wam.jvOutput, leaderDynamics.jvInputDynamics);
+    systems::connect(zeroAcceleration.output, leaderDynamics.jaInputDynamics);
 
     systems::connect(leader.wamJPOutput, customjtSum.getInput(0));
     systems::connect(wam.gravity.output, customjtSum.getInput(1));
@@ -111,11 +133,18 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     systems::connect(wam.gravity.output, externalTorque.wamGravityIn);
     systems::connect(customjtSum.output, externalTorque.wamTorqueSumIn);
-
     systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
 
+    systems::connect(wam.gravity.output, dynamicExternalTorque.wamGravityIn);
+    systems::connect(customjtSum.output, dynamicExternalTorque.wamTorqueSumIn);
+    systems::connect(leaderDynamics.dynamicsFeedFWD, dynamicExternalTorque.wamDynamicsIn);
+    systems::connect(dynamicExternalTorque.wamExternalTorqueOut, dynamicExtFilter.input);
+
+    systems::connect(dynamicExtFilter.output, printdynamicextTorque.input);
     systems::connect(extFilter.output, printextTorque.input);
     systems::connect(wam.supervisoryController.output, printSC.input);
+    systems::connect(leaderDynamics.dynamicsFeedFWD, printdynamicoutput.input);
+
     // systems::connect(extFilter.output, printjtSum.input);
     // systems::connect(extFilter.output, printcustomjtSum.input);
 
