@@ -159,6 +159,6 @@ class Follower : public barrett::systems::System {
         jt_type u6 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque; // both feedforward and force controller
 
 
-        return u6;
+        return u4;
     };
 };

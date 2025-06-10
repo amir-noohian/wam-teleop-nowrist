@@ -168,6 +168,6 @@ class Leader : public barrett::systems::System {
         // std::cout << "u1 = [" << u1.transpose() << "]" << std::endl;
         // std::cout << "u2 = [" << u2.transpose() << "]" << std::endl;
 
-        return u6;
+        return u4;
     };
 };
