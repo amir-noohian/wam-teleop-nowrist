@@ -15,6 +15,8 @@ class Follower : public barrett::systems::System {
   public:
     Input<jp_type> wamJPIn;
     Input<jv_type> wamJVIn;
+    Input<jt_type> wamGravIn;
+    Input<jt_type> wamDynIn;
     Output<jt_type> wamJPOutput;
 
     enum class State { INIT, LINKED, UNLINKED };
@@ -27,6 +29,8 @@ class Follower : public barrett::systems::System {
         , control(0.0)
         , wamJPIn(this)
         , wamJVIn(this)
+        , wamGravIn(this)
+        , wamDynIn(this)
         , wamJPOutput(this, &jtOutputValue)
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
@@ -59,6 +63,8 @@ class Follower : public barrett::systems::System {
     typename Output<jt_type>::Value* jtOutputValue;
     jp_type wamJP;
     jv_type wamJV;
+    jt_type wamGrav;
+    jt_type wamDyn;
     Eigen::Matrix<double, DOF, 1> sendJpMsg;
     Eigen::Matrix<double, DOF, 1> sendJvMsg;
 
@@ -68,6 +74,8 @@ class Follower : public barrett::systems::System {
 
         wamJP = wamJPIn.getValue();
         wamJV = wamJVIn.getValue();
+        wamGrav = wamGravIn.getValue();
+        wamDyn = wamDynIn.getValue();
         sendJpMsg << wamJP;
         sendJvMsg << wamJV;
 
@@ -79,29 +87,6 @@ class Follower : public barrett::systems::System {
 
             theirJp = received_data->jp;
             theirJv = received_data->jv;
-
-            // Assume theirJp and received_data->jp have the same size
-            // int size = theirJp.rows();
-
-            // std::cout << received_data->jp << std::endl;
-
-
-            // // Copy all elements one by one
-            // for (int i = 0; i < DOF-3; i++) {
-            //     theirJp[i] = received_data->jp[i];
-            // }
-
-            // // Set last 3 elements to zero
-            // for (int i = DOF - 3; i < DOF; i++) {
-            //     theirJp[i] = 0;
-            // }
-
-            // for (int i = 0; i < DOF -3; i++) {
-            //     theirJv[i] = received_data->jv[i];
-            // }
-            // for (int i = DOF - 3; i < DOF; i++) {
-            //     theirJv[i] = 0;
-            // }
 
         } else {
             if (state == State::LINKED) {
@@ -117,7 +102,7 @@ class Follower : public barrett::systems::System {
                 break;
             case State::LINKED:
                 // Active teleop. Only the callee can transition to LINKED
-                control = compute_control(theirJp, theirJv, wamJP, wamJV);
+                control = compute_control(theirJp, theirJv, wamJP, wamJV, wamGrav, wamDyn);
                 jtOutputValue->setData(&control);
                 break;
             case State::UNLINKED:
@@ -143,9 +128,14 @@ class Follower : public barrett::systems::System {
     Eigen::Matrix<double, DOF, 1> kd;
 
     jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jp_type& cur_pos,
-                            const jv_type& cur_vel) {
+                            const jv_type& cur_vel, const jt_type& wam_grav, const jt_type& wam_dyn) {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        return pos_term + vel_term;
+        jt_type grav_mod = wam_grav;
+        grav_mod[4] = 0.0;
+        grav_mod[5] = 0.0;
+        grav_mod[6] = 0.0;
+        jt_type feedforward = wam_dyn - grav_mod;
+        return feedforward + pos_term + vel_term;
     };
 };

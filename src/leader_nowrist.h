@@ -15,6 +15,8 @@ class Leader : public barrett::systems::System {
   public:
     Input<jp_type> wamJPIn;
     Input<jv_type> wamJVIn;
+    Input<jt_type> wamGravIn;
+    Input<jt_type> wamDynIn;
     Output<jt_type> wamJPOutput;
 
     enum class State { INIT, LINKED, UNLINKED };
@@ -27,6 +29,8 @@ class Leader : public barrett::systems::System {
         , control(0.0)
         , wamJPIn(this)
         , wamJVIn(this)
+        , wamGravIn(this)
+        , wamDynIn(this)
         , wamJPOutput(this, &jtOutputValue)
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
@@ -59,6 +63,8 @@ class Leader : public barrett::systems::System {
     typename Output<jt_type>::Value* jtOutputValue;
     jp_type wamJP;
     jv_type wamJV;
+    jt_type wamGrav;
+    jt_type wamDyn;
     Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
 
@@ -68,6 +74,8 @@ class Leader : public barrett::systems::System {
 
         wamJP = wamJPIn.getValue();
         wamJV = wamJVIn.getValue();
+        wamGrav = wamGravIn.getValue();
+        wamDyn = wamDynIn.getValue();
         sendJpMsg << wamJP, 0.0, 0.0, 0.0; // added zero to send zero joint positions to the wrist part of the 7-dof follower
         sendJvMsg << wamJV, 0.0, 0.0, 0.0;
 
@@ -97,7 +105,7 @@ class Leader : public barrett::systems::System {
                 break;
             case State::LINKED:
                 // Active teleop. Only the callee can transition to LINKED
-                control = compute_control(theirJp, theirJv, wamJP, wamJV);
+                control = compute_control(theirJp, theirJv, wamJP, wamJV, wamGrav, wamDyn);
                 jtOutputValue->setData(&control);
                 break;
             case State::UNLINKED:
@@ -123,9 +131,11 @@ class Leader : public barrett::systems::System {
     Eigen::Matrix<double, DOF, 1> kd;
 
     jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jp_type& cur_pos,
-                            const jv_type& cur_vel) {
+                            const jv_type& cur_vel, const jt_type& wamGrav, const jt_type& wamDyn) {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        return pos_term + vel_term;
+        jt_type feedforward_term = wamDyn - wamGrav;
+        return feedforward_term + pos_term + vel_term;
     };
 };
+

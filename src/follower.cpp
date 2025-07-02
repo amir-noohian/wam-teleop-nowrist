@@ -23,6 +23,7 @@
 
 #include "follower.h"
 #include "background_state_publisher.h"
+#include "follower_dynamics.h"
 
 using namespace barrett;
 using detail::waitForEnter;
@@ -80,8 +81,27 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     BackgroundStatePublisher<DOF> state_publisher(pm.getExecutionManager(), wam);
 
     Follower<DOF> follower(pm.getExecutionManager(), argv[1], rec_port, send_port);
+
+    FollowerDynamics<DOF> followerDynamics;
+
+    ja_type ja;
+    ja.setConstant(0.0);
+    systems::Constant<ja_type> zeroAcceleration(ja);
+    pm.getExecutionManager()->startManaging(zeroAcceleration);
+
+    barrett::systems::FirstOrderFilter<jt_type> Filter;
+    jt_type omega_p = jt_type::Constant(10.0);
+    Filter.setLowPass(omega_p);
+    pm.getExecutionManager()->startManaging(Filter);
+
+    systems::connect(wam.jpOutput, followerDynamics.jpInputDynamics);
+    systems::connect(wam.jvOutput, followerDynamics.jvInputDynamics);
+    systems::connect(zeroAcceleration.output, followerDynamics.jaInputDynamics);
+    systems::connect(followerDynamics.dynamicsFeedFWD, follower.wamDynIn);
+    systems::connect(wam.gravity.output, follower.wamGravIn);
     systems::connect(wam.jpOutput, follower.wamJPIn);
     systems::connect(wam.jvOutput, follower.wamJVIn);
+    systems::connect(follower.wamJPOutput, Filter.input);
 
     wam.gravityCompensate();
 
@@ -104,7 +124,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 follower.tryLink();
-                wam.trackReferenceSignal(follower.wamJPOutput);
+                wam.trackReferenceSignal(Filter.output);
 
                 btsleep(0.1); // wait an execution cycle or two
                 if (follower.isLinked()) {

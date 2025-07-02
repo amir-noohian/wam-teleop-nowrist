@@ -23,6 +23,7 @@
 
 #include "leader_nowrist.h"
 #include "background_state_publisher.h"
+#include "leader_dynamics.h"
 
 using namespace barrett;
 using detail::waitForEnter;
@@ -80,8 +81,27 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     BackgroundStatePublisher<DOF> state_publisher(pm.getExecutionManager(), wam);
 
     Leader<DOF> leader(pm.getExecutionManager(), argv[1], rec_port, send_port);
+
+    LeaderDynamics<DOF> leaderDynamics;
+
+    ja_type ja;
+    ja.setConstant(0.0);
+    systems::Constant<ja_type> zeroAcceleration(ja);
+    pm.getExecutionManager()->startManaging(zeroAcceleration);
+
+    systems::FirstOrderFilter<jt_type> Filter;
+    jt_type omega_p = jt_type::Constant(10);
+    Filter.setLowPass(omega_p);
+    pm.getExecutionManager()->startManaging(Filter);
+
+    systems::connect(wam.jpOutput, leaderDynamics.jpInputDynamics);
+    systems::connect(wam.jvOutput, leaderDynamics.jvInputDynamics);
+    systems::connect(zeroAcceleration.output, leaderDynamics.jaInputDynamics);
+    systems::connect(leaderDynamics.dynamicsFeedFWD, leader.wamDynIn);
+    systems::connect(wam.gravity.output, leader.wamGravIn);
     systems::connect(wam.jpOutput, leader.wamJPIn);
     systems::connect(wam.jvOutput, leader.wamJVIn);
+    systems::connect(leader.wamJPOutput, Filter.input);
 
     wam.gravityCompensate();
 
@@ -104,7 +124,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 leader.tryLink();
-                wam.trackReferenceSignal(leader.wamJPOutput);
+                wam.trackReferenceSignal(Filter.output);
 
                 btsleep(0.1); // wait an execution cycle or two
                 if (leader.isLinked()) {
