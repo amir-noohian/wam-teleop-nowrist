@@ -36,8 +36,8 @@ class Leader : public barrett::systems::System {
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
-        kp << 750, 1000, 400, 200;
-        kd << 8.3, 8, 3.3, 0.8;
+        kp << 600, 700, 250, 120;
+        kd << 30, 25, 15, 10;
 
 
         if (em != NULL) {
@@ -69,10 +69,15 @@ class Leader : public barrett::systems::System {
     typename Output<jp_type>::Value* theirJPOutputValue;
     jp_type wamJP;
     jv_type wamJV;
+<<<<<<< HEAD
     jt_type extTorque;
     Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendExtTorqueMsg;
+=======
+    Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
+    Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
+>>>>>>> 2c-gravcomp
 
     using ReceivedData = typename UDPHandler<DOF + 3>::ReceivedData;
 
@@ -80,9 +85,14 @@ class Leader : public barrett::systems::System {
 
         wamJP = wamJPIn.getValue();
         wamJV = wamJVIn.getValue();
+<<<<<<< HEAD
         if (extTorqueIn.valueDefined()) {
             extTorque = extTorqueIn.getValue();
             // std::cout << "defined" << std::endl;
+=======
+        sendJpMsg << wamJP, 0.0, 0.0, 0.0; // added zero to send zero joint positions to the wrist part of the 7-dof follower
+        sendJvMsg << wamJV, 0.0, 0.0, 0.0;
+>>>>>>> 2c-gravcomp
 
         } else {
             // std::cout << "not defined" << std::endl;
@@ -100,12 +110,20 @@ class Leader : public barrett::systems::System {
         auto now = std::chrono::steady_clock::now();
         if (received_data && (now - received_data->timestamp <= TIMEOUT_DURATION)) {
 
+<<<<<<< HEAD
             theirJp = received_data->jp.template head<DOF>();
             theirJv = received_data->jv.template head<DOF>();
             theirExtTorque = received_data->extTorque.template head<DOF>();
 
             theirJPOutputValue->setData(&theirJp);
 
+=======
+            // theirJp = received_data->jp;
+            // theirJv = received_data->jv;
+
+            theirJp = received_data->jp.template head<DOF>();
+            theirJv = received_data->jv.template head<DOF>();
+>>>>>>> 2c-gravcomp
 
         } else {
             if (state == State::LINKED) {

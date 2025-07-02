@@ -98,9 +98,6 @@ class Follower : public barrett::systems::System {
 
             theirJp = received_data->jp;
             theirJv = received_data->jv;
-            theirExtTorque = received_data->extTorque;
-            theirJPOutputValue->setData(&theirJp);
-
         } else {
             if (state == State::LINKED) {
                 std::cout << "lost link" << std::endl;
