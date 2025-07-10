@@ -8,7 +8,7 @@
 #include <barrett/units.h>
 #include <barrett/systems.h>
 #include <barrett/math/kinematics.h> 
-#include "follower_beta.h"
+#include "follower_beta_slax.h"
 #include "regressor_W.h"
 
 using namespace barrett;
@@ -57,7 +57,7 @@ protected:
 		tmp_theta_pos = this->jpInputDynamics.getValue();
 		ThetaInput << tmp_theta_pos[0], tmp_theta_pos[1], tmp_theta_pos[2], tmp_theta_pos[3];
 		tmp_theta_vel = this->jvInputDynamics.getValue();
-		ThetadotInput << tmp_theta_vel[0], tmp_theta_vel[1], tmp_theta_vel[2]*0, tmp_theta_vel[3]*0;
+		ThetadotInput << tmp_theta_vel[0], tmp_theta_vel[1], tmp_theta_vel[2], tmp_theta_vel[3];
 		tmp_theta_acc = this->jaInputDynamics.getValue();
 		ThetaddotInput << tmp_theta_acc[0], tmp_theta_acc[1], tmp_theta_acc[2], tmp_theta_acc[3];
 		W = calculate_W_eigen(ThetaInput, ThetadotInput, ThetaddotInput);

@@ -124,7 +124,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Press [Enter] to link with the other WAM.");
                 waitForEnter();
                 follower.tryLink();
-                wam.trackReferenceSignal(Filter.output);
+                wam.trackReferenceSignal(follower.wamJPOutput);
 
                 btsleep(0.1); // wait an execution cycle or two
                 if (follower.isLinked()) {

@@ -35,7 +35,9 @@ class Follower : public barrett::systems::System {
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
-        kp << 750, 1000, 400, 200, 10, 10, 2.5;
+        // kp << 750, 1000, 400, 200, 10, 10, 2.5;
+        // kd << 8.3, 8, 3.3, 0.8, 0.5, 0.5, 0.05;
+        kp << 600, 700, 250, 120, 10, 10, 2.5;
         kd << 8.3, 8, 3.3, 0.8, 0.5, 0.5, 0.05;
 
         if (em != NULL) {
