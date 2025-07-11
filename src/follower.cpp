@@ -114,7 +114,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     systems::connect(wam.jpOutput, follower.wamJPIn);
     systems::connect(wam.jvOutput, follower.wamJVIn);
-    systems::connect(extFilter.output, follower.extTorqueIn);
+    // systems::connect(extFilter.output, follower.extTorqueIn);
+    systems::connect(dynamicExternalTorque.wamExternalTorqueOut, follower.extTorqueIn);
 
     systems::connect(wam.jpOutput, followerDynamics.jpInputDynamics);
     systems::connect(wam.jvOutput, followerDynamics.jvInputDynamics);
@@ -124,14 +125,17 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::connect(wam.gravity.output, customjtSum.getInput(1));
     systems::connect(wam.supervisoryController.output, customjtSum.getInput(2));
 
-    systems::connect(wam.gravity.output, dynamicExternalTorque.wamGravityIn);
     systems::connect(customjtSum.output, dynamicExternalTorque.wamTorqueSumIn);
     systems::connect(followerDynamics.dynamicsFeedFWD, dynamicExternalTorque.wamDynamicsIn);
 
+    systems::connect(wam.gravity.output, follower.wamGravIn);
+    systems::connect(followerDynamics.dynamicsFeedFWD, follower.wamDynIn);
+
     systems::connect(dynamicExternalTorque.wamExternalTorqueOut, extFilter.input);
 
-    systems::connect(extFilter.output, printdynamicextTorque.input);
-    systems::connect(wam.supervisoryController.output, printSC.input);
+    // systems::connect(extFilter.output, printdynamicextTorque.input);
+    // systems::connect(dynamicExternalTorque.wamExternalTorqueOut, printdynamicextTorque.input);
+    // systems::connect(wam.supervisoryController.output, printSC.input);
     // systems::connect(extFilter.output, printcustomjtSum.input);
 
     wam.gravityCompensate();
@@ -156,9 +160,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 waitForEnter();
                 follower.tryLink();
                 wam.trackReferenceSignal(follower.theirJPOutput);
-                // connect(follower.wamJPOutput, wam.input);
-                connect(follower.wamJPOutput, wamJPOutputRamp.input); // one of the problem with the joint limiter is that it adds delay in applying external torque to the robot.
-                connect(wamJPOutputRamp.output, wam.input);
+                systems::connect(follower.wamJPOutput, wam.input);
+                // connect(follower.wamJPOutput, wamJPOutputRamp.input); // one of the problem with the joint limiter is that it adds delay in applying external torque to the robot.
+                // connect(wamJPOutputRamp.output, wam.input);
                 // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
                 btsleep(0.1); // wait an execution cycle or two

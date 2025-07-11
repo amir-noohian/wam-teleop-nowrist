@@ -121,7 +121,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     systems::connect(wam.jpOutput, leader.wamJPIn);
     systems::connect(wam.jvOutput, leader.wamJVIn);
-    systems::connect(dynamicExtFilter.output, leader.extTorqueIn);
+    // systems::connect(dynamicExtFilter.output, leader.extTorqueIn);
+    systems::connect(dynamicExternalTorque.wamExternalTorqueOut, leader.extTorqueIn);
 
     systems::connect(wam.jpOutput, leaderDynamics.jpInputDynamics);
     systems::connect(wam.jvOutput, leaderDynamics.jvInputDynamics);
@@ -131,19 +132,21 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::connect(wam.gravity.output, customjtSum.getInput(1));
     systems::connect(wam.supervisoryController.output, customjtSum.getInput(2));
 
-    systems::connect(wam.gravity.output, externalTorque.wamGravityIn);
-    systems::connect(customjtSum.output, externalTorque.wamTorqueSumIn);
-    systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
+    // systems::connect(wam.gravity.output, externalTorque.wamGravityIn);
+    // systems::connect(customjtSum.output, externalTorque.wamTorqueSumIn);
+    // systems::connect(externalTorque.wamExternalTorqueOut, extFilter.input);
 
-    systems::connect(wam.gravity.output, dynamicExternalTorque.wamGravityIn);
     systems::connect(customjtSum.output, dynamicExternalTorque.wamTorqueSumIn);
     systems::connect(leaderDynamics.dynamicsFeedFWD, dynamicExternalTorque.wamDynamicsIn);
     systems::connect(dynamicExternalTorque.wamExternalTorqueOut, dynamicExtFilter.input);
 
-    systems::connect(dynamicExtFilter.output, printdynamicextTorque.input);
-    systems::connect(extFilter.output, printextTorque.input);
-    systems::connect(wam.supervisoryController.output, printSC.input);
-    systems::connect(leaderDynamics.dynamicsFeedFWD, printdynamicoutput.input);
+    systems::connect(wam.gravity.output, leader.wamGravIn);
+    systems::connect(leaderDynamics.dynamicsFeedFWD, leader.wamDynIn);
+
+    // systems::connect(dynamicExternalTorque.wamExternalTorqueOut, printdynamicextTorque.input);
+    // systems::connect(extFilter.output, printextTorque.input);
+    // systems::connect(wam.supervisoryController.output, printSC.input);
+    // systems::connect(leaderDynamics.dynamicsFeedFWD, printdynamicoutput.input);
 
     // systems::connect(extFilter.output, printjtSum.input);
     // systems::connect(extFilter.output, printcustomjtSum.input);
@@ -172,9 +175,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 waitForEnter();
                 leader.tryLink();
                 wam.trackReferenceSignal(leader.theirJPOutput);
-                // connect(leader.wamJPOutput, wam.input);
-                connect(leader.wamJPOutput, wamJPOutputRamp.input); // one of the problem with the joint limiter is that it adds delay in applying external torque to the robot.
-                connect(wamJPOutputRamp.output, wam.input);
+                connect(leader.wamJPOutput, wam.input);
+                // connect(leader.wamJPOutput, wamJPOutputRamp.input); // one of the problem with the joint limiter is that it adds delay in applying external torque to the robot.
+                // connect(wamJPOutputRamp.output, wam.input);
                 // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
 
                 btsleep(0.1); // wait an execution cycle or two

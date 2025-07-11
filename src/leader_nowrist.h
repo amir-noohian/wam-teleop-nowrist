@@ -16,6 +16,8 @@ class Leader : public barrett::systems::System {
     Input<jp_type> wamJPIn;
     Input<jv_type> wamJVIn;
     Input<jt_type> extTorqueIn;
+    Input<jt_type> wamGravIn;
+    Input<jt_type> wamDynIn;
     Output<jt_type> wamJPOutput;
     Output<jp_type> theirJPOutput;
 
@@ -31,6 +33,8 @@ class Leader : public barrett::systems::System {
         , wamJPIn(this)
         , wamJVIn(this)
         , extTorqueIn(this)
+        , wamGravIn(this)
+        , wamDynIn(this)
         , wamJPOutput(this, &jtOutputValue)
         , theirJPOutput(this, &theirJPOutputValue)
         , udp_handler(remoteHost, send_port, rec_port)
@@ -70,6 +74,8 @@ class Leader : public barrett::systems::System {
     jp_type wamJP;
     jv_type wamJV;
     jt_type extTorque;
+    jt_type wamGrav;
+    jt_type wamDyn;
     Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendExtTorqueMsg;
@@ -80,6 +86,9 @@ class Leader : public barrett::systems::System {
 
         wamJP = wamJPIn.getValue();
         wamJV = wamJVIn.getValue();
+        wamGrav = wamGravIn.getValue();
+        wamDyn = wamDynIn.getValue();
+
         if (extTorqueIn.valueDefined()) {
             extTorque = extTorqueIn.getValue();
             // std::cout << "defined" << std::endl;
@@ -121,7 +130,7 @@ class Leader : public barrett::systems::System {
                 break;
             case State::LINKED:
                 // Active teleop. Only the callee can transition to LINKED
-                control = compute_control(theirJp, theirJv, theirExtTorque, wamJP, wamJV, extTorque);
+                control = compute_control(theirJp, theirJv, theirExtTorque, wamJP, wamJV, extTorque, wamGrav, wamDyn);
                 jtOutputValue->setData(&control);
                 break;
             case State::UNLINKED:
@@ -152,22 +161,40 @@ class Leader : public barrett::systems::System {
     Eigen::Matrix<double, DOF, 1> kd;
 
     jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jt_type& ref_extTorque,
-                            const jp_type& cur_pos, const jv_type& cur_vel, const jt_type& cur_extTorque) {
-        jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
-        jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
+                            const jp_type& cur_pos, const jv_type& cur_vel, const jt_type& cur_extTorque,
+                            const jt_type& cur_grav, const jt_type& cur_dyn) {
+        // jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
+        // jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
         // jt_type cur_extTorque_term = 1 * cur_extTorque;
 
-        jt_type u1 = pos_term + vel_term; // p-p control with PD
-        jt_type u2 = pos_term + vel_term + cur_extTorque; // p-p control with PD and extorqe compensation (it vibrates and becomes unstable)
-        jt_type u3 = 0.0 * cur_extTorque; // zero feedforward
-        jt_type u4 = 0.5 * cur_extTorque; // only compensating external torque
-        jt_type u5 = -0.5 * (cur_extTorque + ref_extTorque); // only a controller on force
-        jt_type u6 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque; // both feedforward and force controller
+        // jt_type u1 = pos_term + vel_term; // p-p control with PD
+        // jt_type u2 = pos_term + vel_term + cur_extTorque; // p-p control with PD and extorqe compensation (it vibrates and becomes unstable)
+        // jt_type u3 = 0.0 * cur_extTorque; // zero feedforward
 
-        // std::cout << "cur_exTorque = [" << cur_extTorque_term.transpose() << "]" << std::endl;
-        // std::cout << "u1 = [" << u1.transpose() << "]" << std::endl;
-        // std::cout << "u2 = [" << u2.transpose() << "]" << std::endl;
+        jt_type u4; // only compensating external torque
+        u4.fill(0.0);
+        u4[1] = 0.5 * cur_extTorque[1]; //increased factor from 0.5
 
-        return u3;
+        jt_type u5; // only a controller on force
+        u5.fill(0.0);
+        u5[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]);
+
+        jt_type u6; // both feedforward and force controller
+        u6.fill(0.0);
+        u6[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + 0.5 * cur_extTorque[1];
+
+        jt_type u7; // external torque comp and dynamic compensation
+        u7.fill(0.0);
+        u7[1] = 0.5 * cur_extTorque[1] + cur_dyn[1] - cur_grav[1];
+
+        jt_type u8; // external torque comp and dynamic compensation
+        u8.fill(0.0);
+        u8[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + 0.5 * cur_extTorque[1] + cur_dyn[1] - cur_grav[1];
+
+        jt_type u9; // torque controller and dynamic comp
+        u9.fill(0.0);
+        u9[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + cur_dyn[1] - cur_grav[1];
+
+        return u8;
     };
 };
