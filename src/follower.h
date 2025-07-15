@@ -166,6 +166,8 @@ class Follower : public barrett::systems::System {
         // As we are using SC, we do not need PD terms for position
         // jt_type u3 = 0.0 * cur_extTorque; //zero feedforward
 
+        jt_type u1 = 0.0 * cur_extTorque; // zero feedforward
+
         jt_type grav_mod = cur_grav;
         grav_mod[4] = 0.0;
         grav_mod[5] = 0.0;
@@ -190,6 +192,6 @@ class Follower : public barrett::systems::System {
         u9[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + cur_dyn[1] - cur_grav[1];
         
 
-        return u7;
+        return u8;
     };
 };
