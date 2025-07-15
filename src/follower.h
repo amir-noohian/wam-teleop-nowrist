@@ -181,9 +181,7 @@ class Follower : public barrett::systems::System {
         u6.fill(0.0);
         u6[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + 0.5 * cur_extTorque[1];
 
-        jt_type u7; // external torque comp and dynamic comp
-        u7.fill(0.0);
-        u7[1] = 0.5 * cur_extTorque[1] + cur_dyn[1] - cur_grav[1];
+        jt_type u7 = 0.5 * cur_extTorque + cur_dyn - grav_mod; // external torque comp and dynamic comp
 
         jt_type u8 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque + cur_dyn - grav_mod; // external torque comp, torque controller and dynamic comp
 
@@ -192,6 +190,6 @@ class Follower : public barrett::systems::System {
         u9[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + cur_dyn[1] - cur_grav[1];
         
 
-        return u8;
+        return u7;
     };
 };

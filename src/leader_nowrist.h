@@ -181,9 +181,7 @@ class Leader : public barrett::systems::System {
         u6.fill(0.0);
         u6[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + 0.5 * cur_extTorque[1];
 
-        jt_type u7; // external torque comp and dynamic compensation
-        u7.fill(0.0);
-        u7[1] = 0.5 * cur_extTorque[1] + cur_dyn[1] - cur_grav[1];
+        jt_type u7 = 0.5 * cur_extTorque + cur_dyn - cur_grav; // external torque comp and dynamic compensation
 
         jt_type u8 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque + cur_dyn - cur_grav; // external torque comp and dynamic compensation
 
@@ -191,6 +189,6 @@ class Leader : public barrett::systems::System {
         u9.fill(0.0);
         u9[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + cur_dyn[1] - cur_grav[1];
 
-        return u4;
+        return u7;
     };
 };
