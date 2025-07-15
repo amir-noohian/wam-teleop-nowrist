@@ -171,9 +171,7 @@ class Leader : public barrett::systems::System {
         // jt_type u2 = pos_term + vel_term + cur_extTorque; // p-p control with PD and extorqe compensation (it vibrates and becomes unstable)
         // jt_type u3 = 0.0 * cur_extTorque; // zero feedforward
 
-        jt_type u4; // only compensating external torque
-        u4.fill(0.0);
-        u4[1] = 0.5 * cur_extTorque[1]; //increased factor from 0.5
+        jt_type u4 = 0.5 * cur_extTorque; // only compensating external torque
 
         jt_type u5; // only a controller on force
         u5.fill(0.0);
@@ -187,14 +185,12 @@ class Leader : public barrett::systems::System {
         u7.fill(0.0);
         u7[1] = 0.5 * cur_extTorque[1] + cur_dyn[1] - cur_grav[1];
 
-        jt_type u8; // external torque comp and dynamic compensation
-        u8.fill(0.0);
-        u8[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + 0.5 * cur_extTorque[1] + cur_dyn[1] - cur_grav[1];
+        jt_type u8 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque + cur_dyn - cur_grav; // external torque comp and dynamic compensation
 
         jt_type u9; // torque controller and dynamic comp
         u9.fill(0.0);
         u9[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + cur_dyn[1] - cur_grav[1];
 
-        return u8;
+        return u4;
     };
 };

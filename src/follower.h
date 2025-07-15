@@ -165,9 +165,13 @@ class Follower : public barrett::systems::System {
         // jt_type u2 = pos_term + vel_term + cur_extTorque; // p-p control with PD and extorqe compensation 
         // As we are using SC, we do not need PD terms for position
         // jt_type u3 = 0.0 * cur_extTorque; //zero feedforward
-        jt_type u4; // only compensating external torque
-        u4.fill(0.0);
-        u4[1] = 0.5 * cur_extTorque[1];
+
+        jt_type grav_mod = cur_grav;
+        grav_mod[4] = 0.0;
+        grav_mod[5] = 0.0;
+        grav_mod[6] = 0.0;
+
+        jt_type u4 = 0.5 * cur_extTorque; // only compensating external torque
 
         jt_type u5; // only a controller on external torque
         u5.fill(0.0);
@@ -181,9 +185,7 @@ class Follower : public barrett::systems::System {
         u7.fill(0.0);
         u7[1] = 0.5 * cur_extTorque[1] + cur_dyn[1] - cur_grav[1];
 
-        jt_type u8; // external torque comp, torque controller and dynamic comp
-        u8.fill(0.0);
-        u8[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + 0.5 * cur_extTorque[1] + cur_dyn[1] - cur_grav[1];
+        jt_type u8 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque + cur_dyn - grav_mod; // external torque comp, torque controller and dynamic comp
 
         jt_type u9; // torque controller and dynamic comp
         u9.fill(0.0);
