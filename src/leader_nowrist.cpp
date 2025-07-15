@@ -119,6 +119,23 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     // systems::PrintToStream<jt_type> printjtSum(pm.getExecutionManager(), "jtSum: ");
     // systems::PrintToStream<jt_type> printcustomjtSum(pm.getExecutionManager(), "customjtSum: ");
 
+    double h_omega_p = 25.0;
+    barrett::systems::FirstOrderFilter<jv_type> hp1;
+    hp1.setHighPass(jv_type(h_omega_p), jv_type(h_omega_p));
+    systems::Gain<jv_type, double, ja_type> jaWAM(1.0);
+    pm.getExecutionManager()->startManaging(hp1);
+
+    barrett::systems::FirstOrderFilter<ja_type> jaFilter;
+    ja_type l_omega_p = ja_type::Constant(50.0);
+    jaFilter.setLowPass(l_omega_p);
+    pm.getExecutionManager()->startManaging(jaFilter);
+
+
+    systems::connect(wam.jvOutput, hp1.input);
+    systems::connect(hp1.output, jaWAM.input);
+    systems::connect(jaWAM.output, jaFilter.input);
+    systems::connect(jaFilter.output, leaderDynamics.jaInputDynamics);
+
     systems::connect(wam.jpOutput, leader.wamJPIn);
     systems::connect(wam.jvOutput, leader.wamJVIn);
     // systems::connect(dynamicExtFilter.output, leader.extTorqueIn);
@@ -126,7 +143,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     systems::connect(wam.jpOutput, leaderDynamics.jpInputDynamics);
     systems::connect(wam.jvOutput, leaderDynamics.jvInputDynamics);
-    systems::connect(zeroAcceleration.output, leaderDynamics.jaInputDynamics);
+    // systems::connect(zeroAcceleration.output, leaderDynamics.jaInputDynamics);
 
     systems::connect(leader.wamJPOutput, customjtSum.getInput(0));
     systems::connect(wam.gravity.output, customjtSum.getInput(1));
