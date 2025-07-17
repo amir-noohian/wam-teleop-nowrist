@@ -175,9 +175,7 @@ class Follower : public barrett::systems::System {
 
         jt_type u4 = 0.5 * cur_extTorque; // only compensating external torque
 
-        jt_type u5; // only a controller on external torque
-        u5.fill(0.0);
-        u5[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]);
+        jt_type u5 = -0.5 * (cur_extTorque + ref_extTorque); // only a controller on external torque
 
         jt_type u6; // both external torque comp and torque controller
         u6.fill(0.0);
@@ -187,11 +185,19 @@ class Follower : public barrett::systems::System {
 
         jt_type u8 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque + cur_dyn - grav_mod; // external torque comp, torque controller and dynamic comp
 
-        jt_type u9; // torque controller and dynamic comp
-        u9.fill(0.0);
-        u9[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + cur_dyn[1] - cur_grav[1];
+        jt_type u9 = -0.5 * (cur_extTorque + ref_extTorque) + cur_dyn - grav_mod; // torque controller and dynamic comp
+
+        jt_type u10 = -0.5 * ref_extTorque + cur_dyn - grav_mod; // ref external torque comp + dynamic comp
+
+        jt_type u11 = -0.5 * (ref_extTorque + cur_extTorque); // ext torque control
+
+        jt_type u12 = -0.5 * ref_extTorque; // ref ext torque feedback
+
+        jt_type u13 = -0.5 * ref_extTorque -0.25 * (ref_extTorque + cur_extTorque);
+        
+        
         
 
-        return u8;
+        return u1;
     };
 };
