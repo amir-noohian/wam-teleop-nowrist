@@ -42,6 +42,8 @@ class Follower : public barrett::systems::System {
 
         kp << 750, 1000, 400, 200, 10, 10, 2.5;
         kd << 8.3, 8, 3.3, 0.8, 0.5, 0.5, 0.05;
+        cf << 0.375, 0.4, 0.2, 0.1, 0.01, 0.01, 0.01;
+
 
         if (em != NULL) {
             em->startManaging(*this);
@@ -153,6 +155,8 @@ class Follower : public barrett::systems::System {
     State state;
     Eigen::Matrix<double, DOF, 1> kp;
     Eigen::Matrix<double, DOF, 1> kd;
+    Eigen::Matrix<double, DOF, 1> cf;
+
 
     jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jt_type& ref_extTorque,
                             const jp_type& cur_pos, const jv_type& cur_vel, const jt_type& cur_extTorque,
@@ -168,36 +172,36 @@ class Follower : public barrett::systems::System {
 
         jt_type u1 = 0.0 * cur_extTorque; // zero feedforward
 
-        jt_type grav_mod = cur_grav;
-        grav_mod[4] = 0.0;
-        grav_mod[5] = 0.0;
-        grav_mod[6] = 0.0;
+        // jt_type grav_mod = cur_grav;
+        // grav_mod[4] = 0.0;
+        // grav_mod[5] = 0.0;
+        // grav_mod[6] = 0.0;
 
         jt_type u4 = 0.5 * cur_extTorque; // only compensating external torque
+  
+        jt_type u5 = -0.4 * (cur_extTorque + ref_extTorque); // only a controller on external torque
 
-        jt_type u5 = -0.5 * (cur_extTorque + ref_extTorque); // only a controller on external torque
+        // jt_type u6; // both external torque comp and torque controller
+        // u6.fill(0.0);
+        // u6[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + 0.5 * cur_extTorque[1];
 
-        jt_type u6; // both external torque comp and torque controller
-        u6.fill(0.0);
-        u6[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + 0.5 * cur_extTorque[1];
+        jt_type u7 = cur_dyn - cur_grav; // dynamic comp
 
-        jt_type u7 = 0.5 * cur_extTorque + cur_dyn - grav_mod; // external torque comp and dynamic comp
+        jt_type u8 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque + cur_dyn - cur_grav; // external torque comp, torque controller and dynamic comp
 
-        jt_type u8 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque + cur_dyn - grav_mod; // external torque comp, torque controller and dynamic comp
+        jt_type u9 = -0.5 * (cur_extTorque + ref_extTorque) + cur_dyn - cur_grav; // torque controller and dynamic comp
 
-        jt_type u9 = -0.5 * (cur_extTorque + ref_extTorque) + cur_dyn - grav_mod; // torque controller and dynamic comp
+        jt_type u10 = -0.5 * ref_extTorque + cur_dyn - cur_grav; // ref external torque comp + dynamic comp
 
-        jt_type u10 = -0.5 * ref_extTorque + cur_dyn - grav_mod; // ref external torque comp + dynamic comp
-
-        jt_type u11 = -0.5 * (ref_extTorque + cur_extTorque); // ext torque control
+        jt_type u11 = cf.asDiagonal() * (ref_extTorque + cur_extTorque) * -1.0;
 
         jt_type u12 = -0.5 * ref_extTorque; // ref ext torque feedback
 
         jt_type u13 = -0.5 * ref_extTorque -0.25 * (ref_extTorque + cur_extTorque);
-        
-        
-        
 
-        return u1;
+        for (size_t i = 4; i < 7; ++i) {
+            u10[i] = 0.0;
+        }
+        return u10;
     };
 };
