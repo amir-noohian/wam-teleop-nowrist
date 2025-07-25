@@ -165,40 +165,31 @@ class Leader : public barrett::systems::System {
     jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jt_type& ref_extTorque,
                             const jp_type& cur_pos, const jv_type& cur_vel, const jt_type& cur_extTorque,
                             const jt_type& cur_grav, const jt_type& cur_dyn) {
-        // jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
-        // jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        // jt_type cur_extTorque_term = 1 * cur_extTorque;
 
-        // jt_type u1 = pos_term + vel_term; // p-p control with PD
-        // jt_type u2 = pos_term + vel_term + cur_extTorque; // p-p control with PD and extorqe compensation (it vibrates and becomes unstable)
-        // jt_type u3 = 0.0 * cur_extTorque; // zero feedforward
+        // cases where the follower and leader have the same control law
 
-        jt_type u1 = 0.0 * cur_extTorque; // zero feedforward
+        jt_type u1 = 0.0 * cur_extTorque; // zero feedforward (equal to default P-P with gravity compensation)
 
-        jt_type u4 = 0.5 * cur_extTorque; // only compensating external torque
+        jt_type u2 = cur_dyn - cur_grav; // P-P with dynamic compensation
 
-        jt_type u5 = -0.4 * (cur_extTorque + ref_extTorque); // only a controller on external torque
+        jt_type u3 = -0.5 * ref_extTorque; // PF-PF with ref external torque feedback
 
-        // jt_type u6; // both feedforward and force controller
-        // u6.fill(0.0);
-        // u6[1] = -0.5 * (cur_extTorque[1] + ref_extTorque[1]) + 0.5 * cur_extTorque[1];
+        jt_type u4 = -0.5 * ref_extTorque + cur_dyn - cur_grav; // PF-PF with ref external torque feedback and dynamic compensation (Lawrence's perfect transparency architecture);
 
-        jt_type u7 = cur_dyn - cur_grav; // dynamic compensation
+        jt_type u5 = -0.5 * ref_extTorque -0.15 * (ref_extTorque + cur_extTorque); // PF-PF with ref external torque and cur external torque feedback
 
-        jt_type u8 = -0.5 * (cur_extTorque + ref_extTorque) + 0.5 * cur_extTorque + cur_dyn - cur_grav; // external torque comp and dynamic compensation
+        jt_type u6 = -0.5 * ref_extTorque -0.15 * (ref_extTorque + cur_extTorque) + cur_dyn - cur_grav; // it has be best performance
 
-        jt_type u9 = -0.5 * (cur_extTorque + ref_extTorque) + cur_dyn - cur_grav; // torque controller and dynamic comp
+        // cases where the controllers on the follower is different
 
-        jt_type u10 = -0.5 * ref_extTorque + cur_dyn - cur_grav;
+        jt_type u7 = -0.5 * cur_extTorque; // cur external torque as feedforward (on the follower side it should be zero)
 
-        jt_type u11 = cf.asDiagonal() * (ref_extTorque + cur_extTorque) * -1.0;
+        jt_type u8 = -0.25 * (ref_extTorque + cur_extTorque); // only a force controller on the leader side (on the follower side it should be zero)
 
-        jt_type u12 = -0.5 * ref_extTorque; // ref ext torque feedback
-
-        jt_type u13 = -0.5 * ref_extTorque -0.25 * (ref_extTorque + cur_extTorque); // ref ext torque feedback + ext torq compensation
+        // jt_type u9 = -0.5 * cur_extTorque -0.25 * (ref_extTorque + cur_extTorque);
 
 
 
-        return u10;
+        return u3;
     };
 };
