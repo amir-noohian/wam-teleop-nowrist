@@ -175,6 +175,7 @@ class Leader : public barrett::systems::System {
         jt_type u3 = -0.5 * ref_extTorque; // PF-PF with ref external torque feedback
 
         jt_type u4 = -0.5 * ref_extTorque + cur_dyn - cur_grav; // PF-PF with ref external torque feedback and dynamic compensation (Lawrence's perfect transparency architecture);
+        //u4 is both ideal and also does not make the robot movement jerky as it does not use any force controller
 
         jt_type u5 = -0.5 * ref_extTorque -0.15 * (ref_extTorque + cur_extTorque); // PF-PF with ref external torque and cur external torque feedback
 
@@ -190,6 +191,6 @@ class Leader : public barrett::systems::System {
 
 
 
-        return u2;
+        return u1;
     };
 };
