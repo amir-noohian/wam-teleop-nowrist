@@ -52,3 +52,7 @@ add_dependencies(follower ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_
 add_executable(leader_nowrist src/leader_nowrist.cpp src/udp_handler.cpp)
 target_link_libraries(leader_nowrist ${BARRETT_LIBRARIES} ${catkin_LIBRARIES} Boost::system Boost::thread)
 add_dependencies(leader_nowrist ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(leader_nowrist_data src/leader_nowrist_data.cpp src/udp_handler.cpp)
+target_link_libraries(leader_nowrist_data ${BARRETT_LIBRARIES} ${catkin_LIBRARIES} Boost::system Boost::thread)
+add_dependencies(leader_nowrist_data ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
