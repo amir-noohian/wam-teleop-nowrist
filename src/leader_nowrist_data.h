@@ -8,6 +8,39 @@
 #include <barrett/thread/abstract/mutex.h>
 #include <barrett/units.h>
 
+// class for sine external torque generation
+template<size_t DOF>
+class sinextorq: public barrett::systems::System {
+	BARRETT_UNITS_TEMPLATE_TYPEDEFS(DOF);
+// IO
+  public:
+	Input<double> timef;
+	Output<jt_type> extorq;
+
+  protected:
+	typename System::Output<jt_type>::Value* extorqValue;
+
+  public:
+	explicit sinextorq(v_type A, double f, const std::string& sysName = "sinextorq"):
+		System(sysName), timef(this), extorq(this, &extorqValue), A(A), f(f){}
+
+	virtual ~sinextorq() { this->mandatoryCleanUp(); }
+
+  protected:
+    double f, t;
+    v_type A;
+	jt_type Extorq;
+
+	virtual void operate() {
+        t = this->timef.getValue();
+        Extorq = A * sin(2 * M_PI * f* t);
+		this->extorqValue->setData(&Extorq);
+	}
+
+  private:
+	DISALLOW_COPY_AND_ASSIGN(sinextorq);
+};
+
 template <size_t DOF>
 class Leader : public barrett::systems::System {
     BARRETT_UNITS_TEMPLATE_TYPEDEFS(DOF);
@@ -20,6 +53,7 @@ class Leader : public barrett::systems::System {
     Input<jt_type> wamDynIn;
     Output<jt_type> wamJPOutput;
     Output<jp_type> theirJPOutput;
+    Output<jt_type> theirextTorqueOutput;
 
     enum class State { INIT, LINKED, UNLINKED };
 
@@ -37,6 +71,7 @@ class Leader : public barrett::systems::System {
         , wamDynIn(this)
         , wamJPOutput(this, &jtOutputValue)
         , theirJPOutput(this, &theirJPOutputValue)
+        , theirextTorqueOutput (this, &theirextTorqueOutputValue)
         , udp_handler(remoteHost, send_port, rec_port)
         , state(State::INIT) {
 
@@ -72,6 +107,7 @@ class Leader : public barrett::systems::System {
   protected:
     typename Output<jt_type>::Value* jtOutputValue;
     typename Output<jp_type>::Value* theirJPOutputValue;
+    typename Output<jt_type>::Value* theirextTorqueOutputValue;
     jp_type wamJP;
     jv_type wamJV;
     jt_type extTorque;
@@ -115,6 +151,7 @@ class Leader : public barrett::systems::System {
             theirExtTorque = received_data->extTorque.template head<DOF>();
 
             theirJPOutputValue->setData(&theirJp);
+            theirextTorqueOutputValue->setData(&theirExtTorque);
 
 
         } else {
@@ -191,6 +228,6 @@ class Leader : public barrett::systems::System {
 
 
 
-        return u4;
+        return u1;
     };
 };

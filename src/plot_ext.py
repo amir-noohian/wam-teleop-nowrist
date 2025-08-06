@@ -38,7 +38,7 @@ def read_data(file_path, variable_names, dof=4):
 def plot_all_vars(kinematics_data, dynamics_data, folder_name, dof=4):
     total_plots = (1 + len(dynamics_data) - 1) * dof  # 1 combined position plot + other dynamics
     cols = 4
-    rows = (total_plots + cols - 1) // cols
+    rows = (total_plots + cols - 1- 11) // cols
     plt.figure(figsize=(16, 3 * rows))
 
     plot_idx = 1
@@ -54,22 +54,22 @@ def plot_all_vars(kinematics_data, dynamics_data, folder_name, dof=4):
         plt.legend()
         plot_idx += 1
 
-    # Plot remaining dynamics data
-    # Plot leader and follower external torques together
-    if 'leader external torque' in dynamics_data and 'follower external torque' in dynamics_data:
+    # Plot leader, follower, and virtual leader external torques together
+    if all(key in dynamics_data for key in ['leader external torque', 'follower external torque', 'leader virtual external torque']):
         for j in range(dof):
             plt.subplot(rows, cols, plot_idx)
             plt.plot(dynamics_data['time'], dynamics_data['leader external torque'][:, j], label="Leader", linestyle='--')
             plt.plot(dynamics_data['time'], -dynamics_data['follower external torque'][:, j], label="Follower")
+            plt.plot(dynamics_data['time'], -dynamics_data['leader virtual external torque'][:, j], label="Virtual Leader", linestyle=':')
             plt.title(f"External Torque [Joint {j+1}]")
             plt.xlabel("Time (s)")
             plt.ylabel("Torque (Nm)")
             plt.legend()
             plot_idx += 1
 
-    # Plot any remaining dynamics variables except the two already plotted
+    # Plot any remaining dynamics variables except the ones already plotted
     for var, data in dynamics_data.items():
-        if var in ['time', 'leader external torque', 'follower external torque']:
+        if var in ['time', 'leader external torque', 'follower external torque', 'leader virtual external torque']:
             continue
         for j in range(dof):
             plt.subplot(rows, cols, plot_idx)
@@ -78,6 +78,11 @@ def plot_all_vars(kinematics_data, dynamics_data, folder_name, dof=4):
             plt.xlabel("Time (s)")
             plt.ylabel(var)
             plot_idx += 1
+
+    # plt.suptitle(f"{folder_name}")
+    # plt.tight_layout(rect=[0, 0, 1, 0.95])
+    # plt.show()
+
 
 
     plt.suptitle(f"{folder_name}")
@@ -103,6 +108,7 @@ def calculate_rms(signal):
 def calculate_errors(kinematics_data, dynamics_data, dof=4):
     pos_nrmse_list = []
     ext_torque_nrmse_list = []
+    ext_torque_est_nrmse_list = []
     pos_rms_list = []
     leader_ext_rms_list = []
     follower_ext_rms_list = []
@@ -112,9 +118,11 @@ def calculate_errors(kinematics_data, dynamics_data, dof=4):
         pos_des = kinematics_data['desired joint pos'][:, joint]
         pos_feedback = kinematics_data['feedback joint pos'][:, joint]
         leader_ext_torque = dynamics_data['leader external torque'][:, joint]
+        virtual_leader_ext_torque = dynamics_data['leader virtual external torque'][:, joint]
         follower_ext_torque = dynamics_data['follower external torque'][:, joint]
-        ext_torque_nrmse = calculate_nrmse(leader_ext_torque, -follower_ext_torque)
 
+        ext_torque_nrmse = calculate_nrmse(leader_ext_torque, -follower_ext_torque)
+        ext_torque_est_nrmse = calculate_nrmse(leader_ext_torque, -virtual_leader_ext_torque)
         pos_nrmse = calculate_nrmse(pos_des, pos_feedback)
         pos_rms = calculate_rms(pos_feedback)
         leader_ext_rms = calculate_rms(leader_ext_torque)
@@ -123,6 +131,7 @@ def calculate_errors(kinematics_data, dynamics_data, dof=4):
 
         pos_nrmse_list.append(pos_nrmse)
         ext_torque_nrmse_list.append(ext_torque_nrmse)
+        ext_torque_est_nrmse_list.append(ext_torque_est_nrmse)
         pos_rms_list.append(pos_rms)
         leader_ext_rms_list.append(leader_ext_rms)
         follower_ext_rms_list.append(follower_ext_rms)
@@ -138,6 +147,10 @@ def calculate_errors(kinematics_data, dynamics_data, dof=4):
 
     print("\n---- nRMSE (External Torque) ----")
     for joint, value in enumerate(ext_torque_nrmse_list):
+        print(f"  Joint {joint+1}: {value:.4f}")
+
+    print("\n---- nRMSE (Estimated External Torque) ----")
+    for joint, value in enumerate(ext_torque_est_nrmse_list):
         print(f"  Joint {joint+1}: {value:.4f}")
 
     print("\n---- RMS Position ----")

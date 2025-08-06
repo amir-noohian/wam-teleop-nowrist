@@ -52,6 +52,7 @@ bool validate_args(int argc, char** argv) {
     return true;
 }
 
+
 template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, systems::Wam<DOF> &wam) {
     BARRETT_UNITS_TEMPLATE_TYPEDEFS(DOF);
 
@@ -70,9 +71,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     jp_type SYNC_POS; // the position each WAM should move to before linking
     if (DOF == 4) {
         SYNC_POS[0] = 0.0;
-        SYNC_POS[1] = -1.95;
+        SYNC_POS[1] = 0.0;
         SYNC_POS[2] = 0.0;
-        SYNC_POS[3] = 2.97;
+        SYNC_POS[3] = 0.0;
         // SYNC_POS[4] = 0.0;
         // SYNC_POS[5] = 0.0;
         // SYNC_POS[6] = 0.0;
@@ -148,6 +149,17 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     pm.getExecutionManager()->startManaging(jaFilter);
 
 
+    //Applied External Torque
+    jt_type A;
+	A << 0.0, 5.0, 0.0, 0.0;
+	double f = 0.3;
+	sinextorq<DOF> extorqFeedFWD(A, f);
+	systems::Summer<jt_type, 2> feedFwdSum;
+	systems::Ramp time(pm.getExecutionManager(), 1.0);
+	connect(time.output, extorqFeedFWD.timef);
+	connect(leader.wamJPOutput, feedFwdSum.getInput(0));
+	connect(extorqFeedFWD.extorq, feedFwdSum.getInput(1));
+
     systems::connect(wam.jvOutput, hp1.input);
     systems::connect(hp1.output, jaWAM.input);
     systems::connect(jaWAM.output, jaFilter.input);
@@ -198,7 +210,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 		new log::RealTimeWriter<tuple_type_kinematics>(tmpFile_kinematics, PERIOD_MULTIPLIER * pm.getExecutionManager()->getPeriod()),
 		PERIOD_MULTIPLIER);
     
-    systems::TupleGrouper<double, jt_type, jt_type, jt_type, jt_type, jt_type, jt_type> tg_dynamics;
+    systems::TupleGrouper<double, jt_type, jt_type, jt_type, jt_type, jt_type, jt_type, jt_type> tg_dynamics;
     systems::connect(timelog.output, tg_dynamics.template getInput<0>());
     systems::connect(wam.jtSum.output, tg_dynamics.template getInput<1>());
     systems::connect(customjtSum.output, tg_dynamics.template getInput<2>());
@@ -206,8 +218,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::connect(leaderDynamics.dynamicsFeedFWD, tg_dynamics.template getInput<4>());
     systems::connect(dynamicExternalTorque.wamExternalTorqueOut, tg_dynamics.template getInput<5>());
     systems::connect(leader.theirextTorqueOutput, tg_dynamics.template getInput<6>());
+    systems::connect(extorqFeedFWD.extorq, tg_dynamics.template getInput<7>());
     
-    typedef boost::tuple<double, jt_type, jt_type, jt_type, jt_type, jt_type, jt_type> tuple_type_dynamics;
+    typedef boost::tuple<double, jt_type, jt_type, jt_type, jt_type, jt_type, jt_type, jt_type> tuple_type_dynamics;
 	systems::PeriodicDataLogger<tuple_type_dynamics> logger_dynamics(
         pm.getExecutionManager(),
         new log::RealTimeWriter<tuple_type_dynamics>(tmpFile_dynamics, PERIOD_MULTIPLIER * pm.getExecutionManager()->getPeriod()),
@@ -237,7 +250,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 waitForEnter();
                 leader.tryLink();
                 wam.trackReferenceSignal(leader.theirJPOutput);
-                connect(leader.wamJPOutput, wam.input);
+                connect(feedFwdSum.output, wam.input);
                 // connect(leader.wamJPOutput, wamJPOutputRamp.input); // one of the problem with the joint limiter is that it adds delay in applying external torque to the robot.
                 // connect(wamJPOutputRamp.output, wam.input);
                 // systems::forceConnect(wam.jtSum.output, externalTorque.wamTorqueSumIn);
@@ -249,17 +262,34 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 } else {
                     printf("WARNING: Linking was unsuccessful.\n");
                 }
+
+                timelog.start();
+                connect(tg_kinematics.output, logger_kinematics.input);
+                connect(tg_dynamics.output, logger_dynamics.input);
+				printf("Logging started.\n");
+                time.stop();
+				time.reset();
+				time.start();
+				btsleep((2/f));
+				time.stop();
+				time.reset();
+				logger_kinematics.closeLog();
+				logger_dynamics.closeLog();
+				printf("Logging stopped.\n");
+				timelog.stop();
+				timelog.reset();
+
             }
 
 
             break;
 
-        case 'r':
-            timelog.start();
-            connect(tg_kinematics.output, logger_kinematics.input);
-            connect(tg_dynamics.output, logger_dynamics.input);
-            printf("Logging started.\n");
-            break;
+        // case 'r':
+        //     timelog.start();
+        //     connect(tg_kinematics.output, logger_kinematics.input);
+        //     connect(tg_dynamics.output, logger_dynamics.input);
+        //     printf("Logging started.\n");
+        //     break;
 
         case 't':
             size_t jointIndex;
@@ -354,7 +384,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     //Config File Writing
 	configFile << "Teleop\n";
 	configFile << "Kinematics data: time, desired joint pos, feedback joint pos\n";
-	configFile << "Dynamics data: time, wam joint torque input, custom joint torque input, wam gravity input, dynamic input, leader external torque, follower external torque\n";
+	configFile << "Dynamics data: time, wam joint torque input, custom joint torque input, wam gravity input, dynamic input, leader external torque, follower external torque, leader virtual external torque\n";
 	configFile << "Joint Position PID Controller: \nkp: " << wam.jpController.getKp() << "\nki: " << wam.jpController.getKi()<<  "\nkd: "<< wam.jpController.getKd() <<"\nControl Signal Limit: " << wam.jpController.getControlSignalLimit() <<".\n";
 	configFile << "Sync Pos:" << SYNC_POS;
 
