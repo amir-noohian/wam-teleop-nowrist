@@ -43,9 +43,9 @@ int wam_main(int argc, char** argv, ProductManager& pm, systems::Wam<DOF>& wam) 
     jp_type SYNC_POS; // the position each WAM should move to before linking
     if (DOF == 4) {
         SYNC_POS[0] = 0.0;
-        SYNC_POS[1] = -1.5;
+        SYNC_POS[1] = -1.95;
         SYNC_POS[2] = 0.0;
-        SYNC_POS[3] = 2.7;
+        SYNC_POS[3] = 3.07;
 
     } else {
         printf("Error: Only 4 DOF wam supported\n");

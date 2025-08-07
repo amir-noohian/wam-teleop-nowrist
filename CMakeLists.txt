@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 project(wam_teleop)
 
-option(BUILD_LEADER "Build leader executable" OFF)
+option(BUILD_LEADER "Build leader executable" ON)
 
 # By default, build programs with compiler optimizations and debugging symbols
 if (NOT CMAKE_BUILD_TYPE)

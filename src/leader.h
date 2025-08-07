@@ -108,13 +108,13 @@ class Leader : public barrett::systems::System {
                 break;
             case State::LINKED:
                 // Active teleop. Only the callee can transition to LINKED
-                hw->setPosition(theirWristJp);
+                hw->setTarget(theirWristJp); //change from setPosition
                 control = compute_control(theirJp, theirJv, wamJP, wamJV);
                 jtOutputValue->setData(&control);
                 break;
             case State::UNLINKED:
                 // Changed to unlinked with either timeout or callee.
-                hw->setPosition(wristJP);
+                hw->setTarget(wristJP); //changed from setPosition
                 control.setZero();
                 jtOutputValue->setData(&control);
                 break;
