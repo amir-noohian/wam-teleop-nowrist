@@ -33,8 +33,11 @@ class Leader : public barrett::systems::System {
         , hw(hw)
         , state(State::INIT) {
 
-        kp << 600, 700, 250, 120;
-        kd << 30, 25, 15, 10;
+        // kp << 600, 700, 250, 120;
+        // kd << 30, 25, 15, 10;
+
+        kp << 750, 1000, 400, 200;
+        kd << 8.3, 8, 3.3, 0.8;
 
         if (em != NULL) {
             em->startManaging(*this);
