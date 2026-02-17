@@ -21,7 +21,7 @@ public:
   Output<jp_type> policyOutput;
   Output<jp_type> theirJPOutput;
 
-  enum class State { INIT, LINKED, UNLINKED, ROLLOUTS };
+  enum class State { INIT, LINKED, UNLINKED, ROLLOUTS, NEED_RESET };
 
   explicit FollowerPolicy(barrett::systems::ExecutionManager *em,
                           const std::string &remoteHost, int rec_port = 5554,
@@ -61,6 +61,8 @@ public:
   }
 
   bool isRollingOut() const { return state == State::ROLLOUTS; }
+
+  bool needReset() const { return state == State::NEED_RESET; }
   void switchToPolicyRollouts() {
     BARRETT_SCOPED_LOCK(this->getEmMutex());
     state = State::ROLLOUTS;
@@ -71,6 +73,7 @@ public:
     tmp_jp[4] = wamJP[4];
     tmp_jp[5] = wamJP[5];
     tmp_jp[6] = wamJP[6];
+
     policyOutputValue->setData(
         &tmp_jp); // initialize the policy output to the current position to
                  // avoid jumps when switching.
@@ -137,13 +140,9 @@ protected:
     boost::optional<ReceivedData> policy_received_data =
         policy_handler.getLatestReceived();
 
-    // no timeout since policy may send data at lower frequency e.g. 20-50Hz
-    // if (policy_received_data && state == State::ROLLOUTS &&
-    //     (now - policy_received_data->timestamp <= POLICY_TIMEOUT_DURATION)) {
-    if (policy_received_data && state == State::ROLLOUTS) {
-
-      // TODO: for now put some simple trajectory e.g. sinusoid to test
-      // switching.
+    if (policy_received_data && state == State::ROLLOUTS &&
+        (now - policy_received_data->timestamp <= POLICY_TIMEOUT_DURATION)) {
+    // if (policy_received_data && state == State::ROLLOUTS) {
       // Update the policy information
       policyJp = policy_received_data->jp;
       policyJv = policy_received_data->jv;
@@ -151,12 +150,14 @@ protected:
 
       policyOutputValue->setData(&policyJp);
     } else {
-      // NOTE COMMENTED FOR NOW SO WE CAN JUST TEST THAT IT HOLDS POSITION.
-      //   if (state == State::ROLLOUTS) {
-      //     std::cout << "lost policy link, switching back to teleop control"
-      //               << std::endl;
-      //     state = State::LINKED;
-      //   }
+      // NOTE comment this out if you just want to test position
+        if (state == State::ROLLOUTS) {
+          std::cout << "lost policy link, press p to switch back to teleop control"
+                    << std::endl;
+          // Can't go to "linked", because the main loop needs to switch us back
+          // to following the right reference signal first.
+          state = State::NEED_RESET; 
+        }
     }
 
     switch (state) {

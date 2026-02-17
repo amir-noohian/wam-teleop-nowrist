@@ -182,8 +182,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::connect(leaderDynamics.dynamicsFeedFWD, leader.wamDynIn);
 
     // systems::connect(dynamicExternalTorque.wamExternalTorqueOut, printdynamicextTorque.input);
-    systems::connect(externalTorque.wamExternalTorqueOut, printextTorque.input);
-    systems::connect(wam.supervisoryController.output, printSC.input);
+    // systems::connect(externalTorque.wamExternalTorqueOut, printextTorque.input);
+    // systems::connect(wam.supervisoryController.output, printSC.input);
     // systems::connect(leaderDynamics.dynamicsFeedFWD, printdynamicoutput.input);
     // systems::connect(extFilter.output, printjtSum.input);
     // systems::connect(extFilter.output, printcustomjtSum.input);

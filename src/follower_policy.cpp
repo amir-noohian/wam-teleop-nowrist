@@ -233,14 +233,14 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
             break;
 
         case 'p':
-            if (!follower.isLinked() && !follower.isRollingOut()) {
-                printf("Not linked with other WAM; cannot enable online policy tuning.\n");
-            } else if (follower.isRollingOut()) {
+            if (follower.isRollingOut() || follower.needReset()) {
                 // If already rolling out, disable policy rollouts and switch back to
                 // following the leader
                 follower.disablePolicyRollouts();
                 wam.trackReferenceSignal(follower.theirJPOutput);
                 printf("Online policy tuning disabled - rollout stopped.\n");
+            } else if (!follower.isLinked() && !follower.isRollingOut()) {
+                printf("Not linked with other WAM; cannot enable online policy tuning.\n");
             } else {
                 // If linked, switch to policy rollouts
                 follower.switchToPolicyRollouts();
