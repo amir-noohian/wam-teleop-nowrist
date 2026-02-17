@@ -71,7 +71,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     std::string remoteHost = "127.0.0.1";
     int rec_port = 5555;
     int send_port = 5554;
-    bool use_dynamics_for_ext_torque = false;
+    bool use_dynamics_for_ext_torque = true;
 
     if (argc >= 2) {
         remoteHost = std::string(argv[1]);
@@ -182,8 +182,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::connect(leaderDynamics.dynamicsFeedFWD, leader.wamDynIn);
 
     // systems::connect(dynamicExternalTorque.wamExternalTorqueOut, printdynamicextTorque.input);
-    // systems::connect(extFilter.output, printextTorque.input);
-    // systems::connect(wam.supervisoryController.output, printSC.input);
+    systems::connect(externalTorque.wamExternalTorqueOut, printextTorque.input);
+    systems::connect(wam.supervisoryController.output, printSC.input);
     // systems::connect(leaderDynamics.dynamicsFeedFWD, printdynamicoutput.input);
     // systems::connect(extFilter.output, printjtSum.input);
     // systems::connect(extFilter.output, printcustomjtSum.input);

@@ -64,8 +64,15 @@ public:
   void switchToPolicyRollouts() {
     BARRETT_SCOPED_LOCK(this->getEmMutex());
     state = State::ROLLOUTS;
+    tmp_jp[0] = wamJP[0];
+    tmp_jp[1] = wamJP[1];
+    tmp_jp[2] = wamJP[2];
+    tmp_jp[3] = wamJP[3];
+    tmp_jp[4] = wamJP[4];
+    tmp_jp[5] = wamJP[5];
+    tmp_jp[6] = wamJP[6];
     policyOutputValue->setData(
-        &wamJP); // initialize the policy output to the current position to
+        &tmp_jp); // initialize the policy output to the current position to
                  // avoid jumps when switching.
   }
   void disablePolicyRollouts() {
@@ -82,6 +89,7 @@ protected:
   jt_type extTorque;
   jt_type wamGrav;
   jt_type wamDyn;
+  jp_type tmp_jp;
   Eigen::Matrix<double, DOF, 1> sendJpMsg;
   Eigen::Matrix<double, DOF, 1> sendJvMsg;
   Eigen::Matrix<double, DOF, 1> sendExtTorqueMsg;
@@ -221,7 +229,7 @@ private:
     jt_type u0 = 0.0 * cur_extTorque; // zero feedforward (equal to default P-P
                                       // with gravity compensation)
     // PP with external force from the leader (haptic corrections)
-    jt_type u1 = -0.5 * ref_extTorque;
+    jt_type u1 = -2.0 * ref_extTorque;
 
     // PP with external force from the leader (haptic corrections)
     // AND dynamic compensation

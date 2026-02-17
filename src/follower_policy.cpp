@@ -72,7 +72,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     int send_port = 5555;
     int policy_rec_port = 5556;
     int policy_send_port = 5557;
-    bool use_dynamics_for_ext_torque = false;
+    bool use_dynamics_for_ext_torque = true;
 
     if (argc >= 2) {
         remoteHost = std::string(argv[1]);
@@ -125,6 +125,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     systems::PrintToStream<jt_type> printdynamicextTorque(pm.getExecutionManager(), "dynamicextTorque: ");
     systems::PrintToStream<jt_type> printSC(pm.getExecutionManager(), "SC: ");
+    systems::PrintToStream<jp_type> printPolicy(pm.getExecutionManager(), "Policy: ");
 
     // systems::PrintToStream<jt_type> printcustomjtSum(pm.getExecutionManager(),
     // "customjtSum: ");
@@ -177,11 +178,12 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::connect(wam.gravity.output, follower.wamGravIn);
     systems::connect(followerDynamics.dynamicsFeedFWD, follower.wamDynIn);
 
-    // systems::connect(dynamicExtFilter.output, printdynamicextTorque.input);
+    // systems::connect(dynamicExternalTorque.wamExternalTorqueOut, printdynamicextTorque.input);
     // systems::connect(dynamicExternalTorque.wamExternalTorqueOut,
     // printdynamicextTorque.input);
     // systems::connect(wam.supervisoryController.output, printSC.input);
     // systems::connect(dynamicExtFilter.output, printcustomjtSum.input);
+    // systems::connect(follower.policyOutput, printPolicy.input);
 
     if (use_dynamics_for_ext_torque) {
         systems::connect(dynamicExternalTorque.wamExternalTorqueOut, state_publisher.exposedExternalTorque.input);
