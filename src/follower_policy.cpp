@@ -49,6 +49,7 @@ bool validate_args(int argc, char **argv) {
     return true;
 }
 
+
 template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, systems::Wam<DOF> &wam) {
     BARRETT_UNITS_TEMPLATE_TYPEDEFS(DOF);
 
@@ -199,7 +200,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     std::string line;
     v_type gainTmp;
 
+
     bool going = true;
+    bool set_demo_start = false;
 
     while (going) {
         printf(">>> ");
@@ -242,6 +245,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Online policy tuning disabled - rollout stopped.\n");
             } else if (!follower.isLinked() && !follower.isRollingOut()) {
                 printf("Not linked with other WAM; cannot enable online policy tuning.\n");
+            } else if (!set_demo_start || !follower.arePositionsEqual(DEMO_POS, wam.getJointPositions(), 0.01)) {
+                printf("Leader and follower must be in demo start position.\n");
             } else {
                 // If linked, switch to policy rollouts
                 follower.switchToPolicyRollouts();
@@ -254,6 +259,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
         case 's':
             if (follower.isLinked()) {
                 DEMO_POS = wam.getJointPositions();
+                set_demo_start = true;
                 printf("saved joint positions state: %f %f %f %f", DEMO_POS[0], DEMO_POS[1], DEMO_POS[2], DEMO_POS[3]);
             } else {
                 printf("Wam's must be linked before saving demo start position");

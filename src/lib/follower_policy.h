@@ -83,6 +83,17 @@ public:
     state = State::LINKED;
   }
 
+  bool arePositionsEqual(jp_type pos_1, jp_type pos_2, float epsilon) {
+      if (pos_1.size() != pos_2.size()) return false;
+
+      float diff = 0.0;
+      for (size_t i = 0; i < pos_1.size(); ++i) {
+          diff += std::abs(pos_1[i] - pos_2[i]);
+      }
+
+      return diff < epsilon;
+  }
+
 protected:
   typename Output<jt_type>::Value *jtOutputValue;
   typename Output<jp_type>::Value *theirJPOutputValue;
