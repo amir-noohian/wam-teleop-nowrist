@@ -49,6 +49,19 @@ bool validate_args(int argc, char **argv) {
     return true;
 }
 
+template <size_t DOF>
+typename units::JointTorques<DOF>::type saturateJt(const typename units::JointTorques<DOF>::type &x,
+                                                   const typename units::JointTorques<DOF>::type &limit) {
+    int index;
+    double minRatio;
+
+    minRatio = (limit.array() / (x.cwiseAbs()).array()).minCoeff(&index);
+    if (minRatio < 1.0) {
+        return minRatio * x;
+    } else {
+        return x;
+    }
+}
 
 template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, systems::Wam<DOF> &wam) {
     BARRETT_UNITS_TEMPLATE_TYPEDEFS(DOF);
@@ -103,6 +116,22 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     ExternalTorque<DOF> externalTorque(pm.getExecutionManager());
 
     DynamicExternalTorque<DOF> dynamicExternalTorque(pm.getExecutionManager());
+
+    jt_type jtLimits;
+    // TODO: these limits are from the wam default conf. They might be too low? No clue.
+    jtLimits[0] = 25.0;
+    jtLimits[1] = 20.0;
+    jtLimits[2] = 15.0;
+    jtLimits[3] = 15.0;
+    jtLimits[4] = 5.0;
+    jtLimits[5] = 5.0;
+    jtLimits[6] = 5.0;
+    systems::Callback<jt_type> saturateCallback(boost::bind(saturateJt<DOF>, _1, jtLimits));
+
+    v_type initial_p_gains = wam.jpController.getKp();
+    v_type initial_d_gains = wam.jpController.getKd();
+    v_type policy_p_gains = initial_p_gains * 0.8;
+    v_type policy_d_gains = initial_d_gains;
 
     barrett::systems::FirstOrderFilter<jt_type> extFilter;
     jt_type omega_p(180.0);
@@ -200,7 +229,6 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     std::string line;
     v_type gainTmp;
 
-
     bool going = true;
     bool set_demo_start = false;
 
@@ -219,7 +247,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 waitForEnter();
                 follower.tryLink();
                 wam.trackReferenceSignal(follower.theirJPOutput);
-                systems::connect(follower.wamJPOutput, wam.input);
+                systems::connect(follower.wamJPOutput, saturateCallback.input);
+                systems::connect(saturateCallback.output, wam.input);
                 // connect(follower.wamJPOutput, wamJPOutputRamp.input); // one of the
                 // problem with the joint limiter is that it adds delay in applying
                 // external torque to the robot. connect(wamJPOutputRamp.output,
@@ -241,6 +270,11 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 // If already rolling out, disable policy rollouts and switch back to
                 // following the leader
                 follower.disablePolicyRollouts();
+
+                // Reset gains to their default values
+                wam.jpController.setKp(initial_p_gains);
+                wam.jpController.setKd(initial_d_gains);
+
                 wam.trackReferenceSignal(follower.theirJPOutput);
                 printf("Online policy tuning disabled - rollout stopped.\n");
             } else if (!follower.isLinked() && !follower.isRollingOut()) {
@@ -250,12 +284,16 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
             } else {
                 // If linked, switch to policy rollouts
                 follower.switchToPolicyRollouts();
+
+                // adjust gains
+                wam.jpController.setKp(policy_p_gains);
+                wam.jpController.setKd(policy_d_gains);
+
                 wam.trackReferenceSignal(follower.policyOutput);
                 printf("Online policy tuning enabled - rollout starting.\n");
             }
             break;
 
-        
         case 's':
             if (follower.isLinked()) {
                 DEMO_POS = wam.getJointPositions();
@@ -281,8 +319,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 // relink
                 follower.tryLink();
                 wam.trackReferenceSignal(follower.theirJPOutput);
-                connect(follower.wamJPOutput, wam.input);
-                
+                systems::connect(follower.wamJPOutput, saturateCallback.input);
+                systems::connect(saturateCallback.output, wam.input);
+
                 btsleep(0.1); // wait an execution cycle or two
                 if (follower.isLinked()) {
                     printf("moved to demo start.\n");
