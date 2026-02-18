@@ -72,7 +72,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     std::string remoteHost = "127.0.0.1";
     int rec_port = 5555;
     int send_port = 5554;
-    bool use_dynamics_for_ext_torque = true;
+    bool use_dynamics_for_ext_torque = false;
 
     if (argc >= 2) {
         remoteHost = std::string(argv[1]);

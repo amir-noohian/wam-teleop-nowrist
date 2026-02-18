@@ -162,13 +162,13 @@ protected:
       policyOutputValue->setData(&policyJp);
     } else {
       // NOTE comment this out if you just want to test position
-        if (state == State::ROLLOUTS) {
-          std::cout << "lost policy link, press p to switch back to teleop control"
-                    << std::endl;
-          // Can't go to "linked", because the main loop needs to switch us back
-          // to following the right reference signal first.
-          state = State::NEED_RESET; 
-        }
+        // if (state == State::ROLLOUTS) {
+        //   std::cout << "lost policy link, press p to switch back to teleop control"
+        //             << std::endl;
+        //   // Can't go to "linked", because the main loop needs to switch us back
+        //   // to following the right reference signal first.
+        //   state = State::NEED_RESET; 
+        // }
     }
 
     switch (state) {
@@ -241,7 +241,7 @@ private:
     jt_type u0 = 0.0 * cur_extTorque; // zero feedforward (equal to default P-P
                                       // with gravity compensation)
     // PP with external force from the leader (haptic corrections)
-    jt_type u1 = -2.0 * ref_extTorque;
+    jt_type u1 = -1.0 * ref_extTorque;
 
     // PP with external force from the leader (haptic corrections)
     // AND dynamic compensation

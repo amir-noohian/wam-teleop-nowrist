@@ -87,7 +87,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     int send_port = 5555;
     int policy_rec_port = 5556;
     int policy_send_port = 5557;
-    bool use_dynamics_for_ext_torque = true;
+    bool use_dynamics_for_ext_torque = false;
 
     if (argc >= 2) {
         remoteHost = std::string(argv[1]);
@@ -118,7 +118,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     DynamicExternalTorque<DOF> dynamicExternalTorque(pm.getExecutionManager());
 
     jt_type jtLimits;
-    // TODO: these limits are from the wam default conf. They might be too low? No clue.
+    // TODO: these limits are from the wam follower conf. Should try to find better ones
+    // These make sure we don't apply too high a force from the human
     jtLimits[0] = 25.0;
     jtLimits[1] = 20.0;
     jtLimits[2] = 15.0;
@@ -130,7 +131,12 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     v_type initial_p_gains = wam.jpController.getKp();
     v_type initial_d_gains = wam.jpController.getKd();
-    v_type policy_p_gains = initial_p_gains * 0.8;
+
+    // NOTE kinda randomly chosen number for now. The more we decrease the follower gains
+    // during policy rollout, the larger range we can easily move on the leader side without
+    // feeling heavy resistance. 0.125 seems like a decent spot, but this will also be affected
+    // by the scale we put on external torque from leader
+    v_type policy_p_gains = initial_p_gains * 0.1;
     v_type policy_d_gains = initial_d_gains;
 
     barrett::systems::FirstOrderFilter<jt_type> extFilter;
@@ -248,7 +254,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 follower.tryLink();
                 wam.trackReferenceSignal(follower.theirJPOutput);
                 systems::connect(follower.wamJPOutput, saturateCallback.input);
-                systems::connect(saturateCallback.output, wam.input);
+                // systems::connect(saturateCallback.output, wam.input);
                 // connect(follower.wamJPOutput, wamJPOutputRamp.input); // one of the
                 // problem with the joint limiter is that it adds delay in applying
                 // external torque to the robot. connect(wamJPOutputRamp.output,
@@ -269,19 +275,24 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
             if (follower.isRollingOut() || follower.needReset()) {
                 // If already rolling out, disable policy rollouts and switch back to
                 // following the leader
-                follower.disablePolicyRollouts();
 
                 // Reset gains to their default values
                 wam.jpController.setKp(initial_p_gains);
                 wam.jpController.setKd(initial_d_gains);
 
+                wam.supervisoryController.disconnectInput();
+                systems::disconnect(wam.input);
                 wam.trackReferenceSignal(follower.theirJPOutput);
+                
+                follower.disablePolicyRollouts();
                 printf("Online policy tuning disabled - rollout stopped.\n");
             } else if (!follower.isLinked() && !follower.isRollingOut()) {
                 printf("Not linked with other WAM; cannot enable online policy tuning.\n");
-            } else if (!set_demo_start || !follower.arePositionsEqual(DEMO_POS, wam.getJointPositions(), 0.03)) {
-                printf("Leader and follower must be in demo start position.\n");
-            } else {
+            } 
+            // else if (!set_demo_start || !follower.arePositionsEqual(DEMO_POS, wam.getJointPositions(), 0.03)) {
+            //     printf("Leader and follower must be in demo start position.\n");
+            // } 
+            else {
                 // If linked, switch to policy rollouts
                 follower.switchToPolicyRollouts();
 
@@ -289,6 +300,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 wam.jpController.setKp(policy_p_gains);
                 wam.jpController.setKd(policy_d_gains);
 
+                wam.supervisoryController.disconnectInput();
+                systems::connect(saturateCallback.output, wam.input);
                 wam.trackReferenceSignal(follower.policyOutput);
                 printf("Online policy tuning enabled - rollout starting.\n");
             }
