@@ -245,7 +245,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 printf("Online policy tuning disabled - rollout stopped.\n");
             } else if (!follower.isLinked() && !follower.isRollingOut()) {
                 printf("Not linked with other WAM; cannot enable online policy tuning.\n");
-            } else if (!set_demo_start || !follower.arePositionsEqual(DEMO_POS, wam.getJointPositions(), 0.01)) {
+            } else if (!set_demo_start || !follower.arePositionsEqual(DEMO_POS, wam.getJointPositions(), 0.03)) {
                 printf("Leader and follower must be in demo start position.\n");
             } else {
                 // If linked, switch to policy rollouts

@@ -73,3 +73,19 @@ To turn off, it is recommended to go through the following procedure to ensure p
 3) Shift idle the leader
 4) Repeat for follower. Press `x` to exit the loop
 5) Shift idle the follower.
+
+
+
+### runnning DMP's
+
+After linking preform the following:
+1) Move the robots to the start position of demo
+2) Press `s` on follower node to set that position
+3) Each time you switch to `p` the code will expect that you start from the start position which you can get to by pressing `g` in the follower node.
+4) Start ./scripts/dmp.py in the dmp repo and press `s` to start recording, move the wams then finish recording by typing enter
+5) Move back to demo start with `g`
+6) Press `r` to start replay in dmp code.
+7) Press `p` to let teleop setup actually follow policy.
+
+TODO: you should press `p` after `r` pretty quickly or the wam will jump. This should be fixed eventually.
+TODO: policy is very stiff and you cant really instruct finetuning instructions 
