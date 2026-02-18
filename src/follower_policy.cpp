@@ -52,6 +52,7 @@ bool validate_args(int argc, char **argv) {
 template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, systems::Wam<DOF> &wam) {
     BARRETT_UNITS_TEMPLATE_TYPEDEFS(DOF);
 
+    jp_type DEMO_POS; // the position each WAM should move to before starting policy control
     jp_type SYNC_POS; // the position each WAM should move to before linking
     if (DOF == 7) {
         SYNC_POS[0] = 0.0;
@@ -249,6 +250,45 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
             }
             break;
 
+        
+        case 's':
+            if (follower.isLinked()) {
+                DEMO_POS = wam.getJointPositions();
+                printf("saved joint positions state: %f %f %f %f", DEMO_POS[0], DEMO_POS[1], DEMO_POS[2], DEMO_POS[3]);
+            } else {
+                printf("Wam's must be linked before saving demo start position");
+            }
+
+            break;
+
+        case 'g':
+            if (follower.isLinked()) {
+                // need to disconnected listeners for safe exit from program
+                disconnect(wam.input);
+                follower.unlink();
+
+                // we rely on previous leader to follower linking to move them together
+                wam.moveTo(DEMO_POS, true);
+                // idle after move prevents segfaults. might also help in the sync code above but havent tested.
+                wam.idle();
+
+                // relink
+                follower.tryLink();
+                wam.trackReferenceSignal(follower.theirJPOutput);
+                connect(follower.wamJPOutput, wam.input);
+                
+                btsleep(0.1); // wait an execution cycle or two
+                if (follower.isLinked()) {
+                    printf("moved to demo start.\n");
+                } else {
+                    printf("WARNING: wams are unlinked!.\n");
+                }
+            } else {
+                printf("Wam's must be linked before moving to demo start position.");
+            }
+
+            break;
+
         case 't':
             size_t jointIndex;
             {
@@ -311,6 +351,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
             printf("\n");
             printf("    'l' to toggle linking with other WAM\n");
             printf("    't' to tune control gains\n");
+            printf("    'p' to start moving with the policy. (policy needs to already be running)\n");
+            printf("    's' to save current position as demo start\n");
+            printf("    'g' go to saved start position\n");
             printf("    'x' to exit\n");
 
             break;
