@@ -121,6 +121,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::PrintToStream<jt_type> printextTorque(pm.getExecutionManager(), "extTorque: ");
     systems::PrintToStream<jt_type> printdynamicoutput(pm.getExecutionManager(), "dynamicoutput: ");
     systems::PrintToStream<jt_type> printSC(pm.getExecutionManager(), "SC: ");
+
+    systems::PrintToStream<jp_type> printTheirJp(pm.getExecutionManager(), "TheirJP: ");
+
     // systems::PrintToStream<jt_type> printjtSum(pm.getExecutionManager(),
     // "jtSum: "); systems::PrintToStream<jt_type>
     // printcustomjtSum(pm.getExecutionManager(), "customjtSum: ");
@@ -221,6 +224,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 leader.tryLink();
                 wam.trackReferenceSignal(leader.theirJPOutput);
                 connect(leader.wamJPOutput, wam.input);
+                // systems::connect(leader.theirJPOutput, printTheirJp.input);
                 // connect(leader.wamJPOutput, wamJPOutputRamp.input); // one of the
                 // problem with the joint limiter is that it adds delay in applying
                 // external torque to the robot. connect(wamJPOutputRamp.output,

@@ -94,6 +94,9 @@ public:
       return diff < epsilon;
   }
 
+  jp_type theirJp;
+
+
 protected:
   typename Output<jt_type>::Value *jtOutputValue;
   typename Output<jp_type>::Value *theirJPOutputValue;
@@ -203,7 +206,6 @@ protected:
     // udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
   }
 
-  jp_type theirJp;
   jv_type theirJv;
   jt_type theirExtTorque;
   jt_type control;

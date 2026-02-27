@@ -163,6 +163,9 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::PrintToStream<jt_type> printdynamicextTorque(pm.getExecutionManager(), "dynamicextTorque: ");
     systems::PrintToStream<jt_type> printSC(pm.getExecutionManager(), "SC: ");
     systems::PrintToStream<jp_type> printPolicy(pm.getExecutionManager(), "Policy: ");
+    systems::PrintToStream<jt_type> printSaturateJt(pm.getExecutionManager(), "SatJt (FF TORQ): ");
+    systems::PrintToStream<jp_type> printTheirJp(pm.getExecutionManager(), "TheirJP: "); 
+    systems::PrintToStream<jt_type> printWamInput(pm.getExecutionManager(), "WAM.input: ");
 
     // systems::PrintToStream<jt_type> printcustomjtSum(pm.getExecutionManager(),
     // "customjtSum: ");
@@ -254,6 +257,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 follower.tryLink();
                 wam.trackReferenceSignal(follower.theirJPOutput);
                 systems::connect(follower.wamJPOutput, saturateCallback.input);
+                // systems::connect(saturateCallback.output, printSaturateJt.input);
+                // systems::connect(follower.theirJPOutput, printTheirJp.input);
                 // systems::connect(saturateCallback.output, wam.input);
                 // connect(follower.wamJPOutput, wamJPOutputRamp.input); // one of the
                 // problem with the joint limiter is that it adds delay in applying
@@ -276,12 +281,26 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 // If already rolling out, disable policy rollouts and switch back to
                 // following the leader
 
+                // The FF term does go back to 0. Follower policy also looks fine.
+                // When we are in policy mode, there is a bit of a "desync" of sorts when we apply external forces
+                // And maybe that somehow leads to this.
+                // Is there a way to somehow "re-link" force re-link them?
+
                 // Reset gains to their default values
                 wam.jpController.setKp(initial_p_gains);
                 wam.jpController.setKd(initial_d_gains);
 
                 wam.supervisoryController.disconnectInput();
                 systems::disconnect(wam.input);
+
+                // Try to force re-link them?
+                wam.jpController.resetIntegrator();
+                wam.moveTo(follower.theirJp, true);
+                btsleep(0.5);
+                printf("Press [Enter] to re-link with the other WAM.");
+                waitForEnter();
+                wam.idle();
+
                 wam.trackReferenceSignal(follower.theirJPOutput);
                 
                 follower.disablePolicyRollouts();
