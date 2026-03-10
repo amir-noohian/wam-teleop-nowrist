@@ -168,35 +168,15 @@ class Leader : public barrett::systems::System {
 
         // cases where the follower and leader have the same control law
 
-        jt_type u1 = 0.0 * cur_extTorque; // zero feedforward (equal to default P-P with gravity compensation)
+        jt_type u_gc = 0.0 * cur_extTorque; // zero feedforward (equal to default P-P with gravity compensation)
 
-        jt_type u2 = cur_dyn - cur_grav; // P-P with dynamic compensation
+        jt_type u_dc = cur_dyn - cur_grav; // P-P with dynamic compensation
 
-        jt_type u3 = -0.5 * ref_extTorque; // PF-PF with ref external torque feedback
+        jt_type u_gc_ff = -0.75 * cur_extTorque; // cur external torque as feedforward (on the follower side it should be zero)
 
-        jt_type u4 = -0.5 * ref_extTorque + cur_dyn - cur_grav; // PF-PF with ref external torque feedback and dynamic compensation (Lawrence's perfect transparency architecture);
-        //u4 is both ideal and also does not make the robot movement jerky as it does not use any force controller
-
-        jt_type u5 = -0.5 * ref_extTorque -0.15 * (ref_extTorque + cur_extTorque); // PF-PF with ref external torque and cur external torque feedback
-
-        jt_type u6 = -0.5 * ref_extTorque -0.15 * (ref_extTorque + cur_extTorque) + cur_dyn - cur_grav; // it has be best performance
-
-        // cases where the controllers on the follower is different
-
-        jt_type u7 = -0.75 * cur_extTorque; // cur external torque as feedforward (on the follower side it should be zero) / -1 made the system unstable
-
-        jt_type u8 = -0.75 * (ref_extTorque + cur_extTorque); // only a force controller on the leader side (on the follower side it should be zero) / -1 made the system unstable
+        jt_type u_gc_lfb = -0.75 * (ref_extTorque + cur_extTorque); // only a force controller on the leader side (on the follower side it should be zero)
 
         
-        jt_type u9 = -0.5 * ref_extTorque - 0.75 * cur_extTorque; // PF-PF with gravity compensation, ref external torque as feedback and cur external torque as feedforward
-        
-
-        jt_type u10 = -0.5 * ref_extTorque -0.25 * (ref_extTorque + cur_extTorque);
-
-        // jt_type u9 = -0.5 * cur_extTorque -0.25 * (ref_extTorque + cur_extTorque);
-
-
-
-        return u1;
+        return u_gc;
     };
 };

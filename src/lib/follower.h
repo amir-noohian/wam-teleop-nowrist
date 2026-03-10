@@ -164,33 +164,15 @@ class Follower : public barrett::systems::System {
         
         // cases where the follower and leader have the same control law
 
-        jt_type u1 = 0.0 * cur_extTorque; // zero feedforward (equal to default P-P with gravity compensation)
+        jt_type u_gc = 0.0 * cur_extTorque; // zero feedforward (equal to default P-P with gravity compensation)
 
-        jt_type u2 = cur_dyn - cur_grav; // P-P with dynamic compensation
+        jt_type u_dc = cur_dyn - cur_grav; // P-P with dynamic compensation
 
-        jt_type u3 = -0.5 * ref_extTorque; // PF-PF with ref external torque feedback
+        jt_type u_gc_ff = -0.0 * cur_extTorque; // zero
 
-        jt_type u4 = -0.5 * ref_extTorque + cur_dyn - cur_grav; // PF-PF with ref external torque feedback and dynamic compensation (Lawrence's perfect transparency architecture);
+        jt_type u_gc_lfb = -0.0 * (ref_extTorque + cur_extTorque); // zero
 
-
-        jt_type u5 = -0.5 * ref_extTorque -0.15 * (ref_extTorque + cur_extTorque); // PF-PF with ref external torque and cur external torque feedback
-
-        jt_type u6 = -0.5 * ref_extTorque -0.15 * (ref_extTorque + cur_extTorque) + cur_dyn - cur_grav; // it has the best performance
-
-
-        // cases that the leader side has differnt controller that the follower
-
-        jt_type u7 = -0.0 * cur_extTorque; // zero
-
-        jt_type u8 = -0.0 * (ref_extTorque + cur_extTorque); // zero
-
-        // jt_type u9 = -0.0 * cur_extTorque - 0.0 * (ref_extTorque + cur_extTorque);
-
-        jt_type u9 = -0.5 * ref_extTorque; // PF-PF with ref external torque as feedback
-
-        jt_type u10 = -0.5 * ref_extTorque;
-
-        jt_type u = u2;
+        jt_type u = u_gc;
 
         for (size_t i = 4; i < 7; ++i) {
             u[i] = 0.0;

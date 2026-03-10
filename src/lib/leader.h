@@ -205,18 +205,14 @@ class Leader : public barrett::systems::System {
                             const jp_type& cur_pos, const jv_type& cur_vel, const jt_type& cur_extTorque,
                             const jt_type& cur_grav, const jt_type& cur_dyn) {
 
-        jt_type u1 = 0.0 * cur_extTorque;                        // zero FF (P-P + g-comp only if you add it)
-        jt_type u2 = cur_dyn - cur_grav;                          // P-P with dynamic comp (your comment)
-        jt_type u3 = -0.5 * ref_extTorque;                        // PF-PF (ref ext torque FF)
-        jt_type u4 = -0.5 * ref_extTorque + cur_dyn - cur_grav;   // PF-PF + dyn comp (Lawrence ideal)
-        jt_type u5 = -0.5 * ref_extTorque - 0.15 * (ref_extTorque + cur_extTorque);
-        jt_type u6 = -0.5 * ref_extTorque - 0.15 * (ref_extTorque + cur_extTorque) + cur_dyn - cur_grav;
+        jt_type u_gc = 0.0 * cur_extTorque; // zero feedforward (equal to default P-P with gravity compensation)
 
-        // Follower-different cases (kept for completeness)
-        jt_type u7 = -0.5 * cur_extTorque;
-        jt_type u8 = -0.25 * (ref_extTorque + cur_extTorque);
+        jt_type u_dc = cur_dyn - cur_grav; // P-P with dynamic compensation
 
-        // Default: u4 as you had
-        return u1;
+        jt_type u_gc_ff = -0.75 * cur_extTorque; // cur external torque as feedforward (on the follower side it should be zero)
+
+        jt_type u_gc_lfb = -0.75 * (ref_extTorque + cur_extTorque); // only a force controller on the leader side (on the follower side it should be zero)
+
+        return u_gc;
     };
 };
