@@ -1,81 +1,229 @@
-# Note
-This version of code is for horizontal configuration of the WAM teleop setup.
+# WAM Teleoperation Package
 
-# Wam Teleop
-This package enables teleoperation between the 4DOF leader with the haptic wrist and the 7DOF follower. While this is a ros package, communication between WAMs does not use ros, and instead uses UDP. Ros is only used to publish the state of arm for easier data collection, and is not intended to receive any incoming messages or services to control the arm. 
+**Note:**  
+This version of the code corresponds to the **horizontal configuration** of the WAM teleoperation setup used in the experiments reported in the associated Frontiers manuscript.
 
-## Build Instructions
+---
 
-Place this package in `<catkin_ws>/src/`.
+# Overview
 
-By default, this package builds the leader and follower node. If you only wish to build the follower node you can configure this from the command line:
-```bash
-catkin_make --cmake-args -DBUILD_LEADER=OFF 
+This package implements a **bilateral teleoperation system between two Barrett WAM manipulators**:
+
+- **Leader:** 4-DOF WAM equipped with a haptic wrist  
+- **Follower:** 7-DOF WAM manipulator
+
+Although the software is structured as a **ROS package**, ROS is **not used for control communication** between the robots.
+
+Instead:
+
+- **UDP communication** is used for real-time signal exchange between the leader and follower.
+- **ROS topics** are used only to publish robot states for **data logging and analysis**.
+
+This design keeps the teleoperation loop independent from ROS timing while still allowing convenient experimental data collection.
+
+---
+
+# Controllers Implemented
+
+This repository includes several control architectures used to evaluate transparency and interaction performance in the WAM teleoperation system. All controllers operate in **joint space**, and interaction forces are estimated using **inverse-dynamics-based external torque estimation**.
+
+The following controllers are implemented:
+
+- **Gravity Compensation (GC)**  
+  Baseline two-channel position–position teleoperation with gravity compensation only.
+
+- **Gravity Compensation with Force Feedforward (GC-FF)**  
+  The estimated external torque at the follower is fed forward to the leader to improve interaction feedback.
+
+- **Gravity Compensation with Local Force Feedback (GC-LFB)**  
+  Local force feedback is applied on the leader using the estimated external torque.
+
+- **Dynamic Compensation (DC)**  
+  Full robot dynamics are compensated using the identified inverse dynamics model, reducing the apparent inertia of the robots and improving transparency.
+
+These controllers correspond to the methods evaluated in the experiments reported in the associated manuscript.
+
+---
+
+# Build Instructions
+
+Place the package in your ROS workspace:
+
 ```
-or set the option to `OFF` in `CMakeLists.txt`:
+<catkin_ws>/src/wam_teleop
+```
+
+Then build the workspace:
+
 ```bash
+cd <catkin_ws>
+catkin_make
+```
+
+## Building Only the Follower
+
+If only the follower node is required:
+
+```bash
+catkin_make --cmake-args -DBUILD_LEADER=OFF
+```
+
+Alternatively modify the option in `CMakeLists.txt`:
+
+```cmake
 option(BUILD_LEADER "Build leader executable" OFF)
 ```
-To build the leader node, the haptic_wrist library is required as a dependency, build and install instructions can be found [here](https://github.com/dmiller12/libhaptic_wrist).
 
-## Run Instructions
+## Leader Dependency
 
-`config/` contains the Barrett configuration files for the leader and follower. 
-You can set the correct config file by using `source scripts/setup_leader.sh` and `source scripts/setup_follower.sh`. These will set the env variable `BARRETT_CONFIG_FILE` to the correct path. 
-You may need to modify the bus port in `config/leader.conf` and `config/follower.conf` depending on the can interface. Note that these environment variables only persist for the current terminal session.
+The leader node requires the **haptic wrist library**.
 
-Each node has the same command line options:
+Build and install it following the instructions here:
+
+https://github.com/dmiller12/libhaptic_wrist
+
+---
+
+# Configuration
+
+The `config/` directory contains the Barrett configuration files for the **leader** and **follower** robots.
+
+To load the appropriate configuration file:
+
+```bash
+source scripts/setup_leader.sh
+source scripts/setup_follower.sh
+```
+
+These scripts set the environment variable
+
+```
+BARRETT_CONFIG_FILE
+```
+
+which specifies the configuration file used by the Barrett WAM driver.
+
+Note that these variables persist only for the **current terminal session**.
+
+The CAN interface may need to be adjusted in:
+
+```
+config/leader.conf
+config/follower.conf
+```
+
+depending on your hardware setup.
+
+---
+
+# Running the Teleoperation System
+
+Each node supports the following interface:
+
 ```bash
 rosrun wam_teleop leader [remoteHost] [recPort] [sendPort]
 rosrun wam_teleop follower [remoteHost] [recPort] [sendPort]
 ```
-Use `-h` or `--help` to see options description.
 
-### Example
+Use:
 
-Source workspace in each terminal in `amir\catkin_ws`
 ```bash
+--help
+```
+
+to see the available options.
+
+---
+
+# Example Execution
+
+## 1. Source the workspace
+
+In each terminal:
+
+```bash
+cd ~/amir/catkin_ws
 source devel/setup.bash
 ```
 
+---
 
-In first terminl, source CAN in a terminal in `amir\catkin_ws\src\wam_teleop`
+## 2. Initialize CAN Interface
+
+Navigate to the package directory:
+
 ```bash
-source scripts\pci_can_init.sh
+cd ~/amir/catkin_ws/src/wam_teleop
 ```
-if you are doing this with the pci card or if you are using usb:
+
+For **PCI CAN interface**:
+
 ```bash
-source scripts\usb_can_init.sh
+source scripts/pci_can_init.sh
 ```
-NOTE: you might have to tweak the can# based on the order you plugged stuff into the computer.
 
+For **USB CAN interface**:
 
-In a separate terminal session, start the master node with: `roscore`.
+```bash
+source scripts/usb_can_init.sh
+```
 
-In a separate terminal session, start the leader in `amir\catkin_ws\src\wam_teleop`:
+You may need to adjust the `can#` interface depending on the order in which the devices were connected.
+
+---
+
+## 3. Start ROS
+
+```bash
+roscore
+```
+
+---
+
+## 4. Start the Leader
+
 ```bash
 source scripts/setup_leader.sh
 rosrun wam_teleop leader_nowrist 127.0.0.1 5555 5554
 ```
-In another separate terminal session, start the follower in `amir\catkin_ws\src\wam_teleop`:
+
+---
+
+## 5. Start the Follower
+
 ```bash
 source scripts/setup_follower.sh
 rosrun wam_teleop follower 127.0.0.1 5554 5555
 ```
-Note the matching recPort and sendPort between leader and follower, that is, the leader receives on 5555 and the follower sends on 5555 and vice versa.
 
-Once both nodes have started:
+The receive and send ports must match between leader and follower:
 
-1) On the leader use `l` to go to the sync position.
-2) On the follower use `l` to go to the sync position. Ensure both arms have reached the sync position before continuing.
-3) Press enter to link leader
-4) Press enter to link follower
+| Robot | Receive Port | Send Port |
+|------|------|------|
+| Leader | 5555 | 5554 |
+| Follower | 5554 | 5555 |
 
-The arm is now ready for user teleoperation.
+---
 
-To turn off, it is recommended to go through the following procedure to ensure proper thread and socket cleanup.
-1) Return both wams to home position
-2) On the leader, press `x` to exit the loop.
-3) Shift idle the leader
-4) Repeat for follower. Press `x` to exit the loop
-5) Shift idle the follower.
+# Teleoperation Procedure
+
+Once both nodes are running:
+
+1. On the **leader**, press `l` to move to the synchronization position.
+2. On the **follower**, press `l` to move to the synchronization position.
+3. Ensure both arms have reached the synchronization configuration.
+4. Press **Enter** on the leader to establish the teleoperation link.
+5. Press **Enter** on the follower to complete the connection.
+
+The system is now ready for teleoperation.
+
+---
+
+# Shutdown Procedure
+
+To ensure proper cleanup of threads and sockets:
+
+1. Return both WAMs to the **home position**
+2. On the **leader**, press `x` to exit the control loop
+3. **Shift-idle** the leader
+4. Repeat the same procedure for the follower
