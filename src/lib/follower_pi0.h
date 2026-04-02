@@ -8,7 +8,7 @@
 #include <barrett/thread/abstract/mutex.h>
 #include <barrett/units.h>
 
-template <size_t DOF> class FollowerPolicy : public barrett::systems::System {
+template <size_t DOF> class FollowerPi0 : public barrett::systems::System {
     BARRETT_UNITS_TEMPLATE_TYPEDEFS(DOF);
 
   public:
@@ -23,9 +23,9 @@ template <size_t DOF> class FollowerPolicy : public barrett::systems::System {
 
     enum class State { INIT, LINKED, UNLINKED, ROLLOUTS, NEED_RESET };
 
-    explicit FollowerPolicy(barrett::systems::ExecutionManager *em, const std::string &remoteHost, int rec_port = 5554,
-                            int send_port = 5555, int policy_rec_port = 5556, int policy_send_port = 5557,
-                            const std::string &sysName = "FollowerPolicy")
+    explicit FollowerPi0(barrett::systems::ExecutionManager *em, const std::string &remoteHost, int rec_port = 5554,
+                         int send_port = 5555, int policy_rec_port = 5556, int policy_send_port = 5557,
+                         const std::string &sysName = "FollowerPi0")
         : System(sysName), theirJp(0.0), theirJv(0.0), theirExtTorque(0.0), control(0.0), wamJPIn(this), wamJVIn(this),
           extTorqueIn(this), wamGravIn(this), wamDynIn(this), wamJPOutput(this, &jtOutputValue),
           policyOutput(this, &policyOutputValue), theirJPOutput(this, &theirJPOutputValue),
@@ -41,7 +41,7 @@ template <size_t DOF> class FollowerPolicy : public barrett::systems::System {
         }
     }
 
-    virtual ~FollowerPolicy() { this->mandatoryCleanUp(); }
+    virtual ~FollowerPi0() { this->mandatoryCleanUp(); }
 
     virtual bool inputsValid() { return true; }
 
@@ -205,7 +205,7 @@ template <size_t DOF> class FollowerPolicy : public barrett::systems::System {
     jt_type policyTorque;
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(FollowerPolicy);
+    DISALLOW_COPY_AND_ASSIGN(FollowerPi0);
     std::mutex state_mutex;
     jp_type joint_positions;
     UDPHandler<DOF> udp_handler;
@@ -236,7 +236,7 @@ template <size_t DOF> class FollowerPolicy : public barrett::systems::System {
         jt_type u2 = -0.5 * ref_extTorque + cur_dyn - cur_grav;
 
         // for now p-p only. LATER SHOULD BE u1!!!
-        return u1;
+        return u0;
     }
 
     jt_type compute_control(const jp_type &ref_pos, const jv_type &ref_vel, const jt_type &ref_extTorque,

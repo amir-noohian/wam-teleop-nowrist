@@ -27,7 +27,7 @@
 #include "lib/background_state_publisher.h"
 #include "lib/dynamic_external_torque.h"
 #include "lib/follower_dynamics.h"
-#include "lib/follower_policy.h"
+#include "lib/follower_pi0.h"
 
 using namespace barrett;
 using detail::waitForEnter;
@@ -76,6 +76,15 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
         SYNC_POS[4] = 0.0;
         SYNC_POS[5] = 0.0;
         SYNC_POS[6] = 0.0;
+
+        // TODO SET DEMO POS
+        DEMO_POS[0] = 0.0;
+        DEMO_POS[1] = 0.25;
+        DEMO_POS[2] = 0.0;
+        DEMO_POS[3] = 2.5;
+        DEMO_POS[4] = 0.0;
+        DEMO_POS[5] = 0.0;
+        DEMO_POS[6] = 0.0;
 
     } else {
         printf("Error: 7 DOF supported\n");
@@ -153,8 +162,8 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
     systems::Constant<ja_type> zeroAcceleration(ja);
     pm.getExecutionManager()->startManaging(zeroAcceleration);
 
-    FollowerPolicy<DOF> follower(pm.getExecutionManager(), remoteHost, rec_port, send_port, policy_rec_port,
-                                 policy_send_port);
+    FollowerPi0<DOF> follower(pm.getExecutionManager(), remoteHost, rec_port, send_port, policy_rec_port,
+                              policy_send_port);
 
     jt_type maxRate; // Nm · s-1 per joint
     maxRate << 50, 50, 50, 50;
@@ -246,35 +255,6 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
         std::getline(std::cin, line);
 
         switch (line[0]) {
-        case 'l':
-            if (follower.isLinked()) {
-                follower.unlink();
-            } else {
-                wam.moveTo(SYNC_POS, true);
-
-                printf("Press [Enter] to link with the other WAM.");
-                waitForEnter();
-                follower.tryLink();
-                wam.trackReferenceSignal(follower.theirJPOutput);
-                systems::connect(follower.wamJPOutput, saturateCallback.input);
-                // systems::connect(saturateCallback.output, printSaturateJt.input);
-                // systems::connect(follower.theirJPOutput, printTheirJp.input);
-                // systems::connect(saturateCallback.output, wam.input);
-                // connect(follower.wamJPOutput, wamJPOutputRamp.input); // one of the
-                // problem with the joint limiter is that it adds delay in applying
-                // external torque to the robot. connect(wamJPOutputRamp.output,
-                // wam.input); systems::forceConnect(wam.jtSum.output,
-                // externalTorque.wamTorqueSumIn);
-
-                btsleep(0.1); // wait an execution cycle or two
-                if (follower.isLinked()) {
-                    printf("Linked with remote WAM.\n");
-                } else {
-                    printf("WARNING: Linking was unsuccessful.\n");
-                }
-            }
-
-            break;
 
         case 'p':
             if (follower.isRollingOut() || follower.needReset()) {
@@ -295,23 +275,17 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
                 // Try to force re-link them?
                 wam.jpController.resetIntegrator();
-                wam.moveTo(follower.theirJp, true);
-                btsleep(0.5);
-                printf("Press [Enter] to re-link with the other WAM.");
-                waitForEnter();
-                wam.idle();
+                // wam.moveTo(follower.theirJp, true);
+                // btsleep(0.5);
+                // printf("Press [Enter] to re-link with the other WAM.");
+                // waitForEnter();
+                // wam.idle();
 
-                wam.trackReferenceSignal(follower.theirJPOutput);
+                // wam.trackReferenceSignal(follower.theirJPOutput);
 
                 follower.disablePolicyRollouts();
                 printf("Online policy tuning disabled - rollout stopped.\n");
-            } else if (!follower.isLinked() && !follower.isRollingOut()) {
-                printf("Not linked with other WAM; cannot enable online policy tuning.\n");
-            }
-            // else if (!set_demo_start || !follower.arePositionsEqual(DEMO_POS, wam.getJointPositions(), 0.03)) {
-            //     printf("Leader and follower must be in demo start position.\n");
-            // }
-            else {
+            } else {
                 // If linked, switch to policy rollouts
                 follower.switchToPolicyRollouts();
 
@@ -320,48 +294,45 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
                 wam.jpController.setKd(policy_d_gains);
 
                 wam.supervisoryController.disconnectInput();
-                systems::connect(saturateCallback.output, wam.input);
+                // TODO uncomment these to actually follow the policy.
+                // Don't need saturate callback for now tho
+                // systems::connect(saturateCallback.output, wam.input);
                 wam.trackReferenceSignal(follower.policyOutput);
                 printf("Online policy tuning enabled - rollout starting.\n");
             }
             break;
 
         case 's':
-            if (follower.isLinked()) {
+            if (!follower.isRollingOut()) {
                 DEMO_POS = wam.getJointPositions();
                 set_demo_start = true;
-                printf("saved joint positions state: %f %f %f %f", DEMO_POS[0], DEMO_POS[1], DEMO_POS[2], DEMO_POS[3]);
+                printf("saved joint positions state: %f %f %f %f %f %f %f", DEMO_POS[0], DEMO_POS[1], DEMO_POS[2],
+                       DEMO_POS[3], DEMO_POS[4], DEMO_POS[5], DEMO_POS[6]);
             } else {
-                printf("Wam's must be linked before saving demo start position");
+                printf("Rolling out, stop with r first.");
             }
 
             break;
+        case 'h':
+            if (!follower.isRollingOut()) {
+                wam.moveHome(true);
+                btsleep(0.1); // wait an execution cycle or two
+                printf("moved to home.\n");
+            } else {
+                printf("Rolling out, stop with r first.");
+            }
+            break;
 
         case 'g':
-            if (follower.isLinked()) {
-                // need to disconnected listeners for safe exit from program
-                disconnect(wam.input);
-                follower.unlink();
-
+            if (!follower.isRollingOut()) {
                 // we rely on previous leader to follower linking to move them together
                 wam.moveTo(DEMO_POS, true);
-                // idle after move prevents segfaults. might also help in the sync code above but havent tested.
-                wam.idle();
-
-                // relink
-                follower.tryLink();
-                wam.trackReferenceSignal(follower.theirJPOutput);
-                systems::connect(follower.wamJPOutput, saturateCallback.input);
-                systems::connect(saturateCallback.output, wam.input);
 
                 btsleep(0.1); // wait an execution cycle or two
-                if (follower.isLinked()) {
-                    printf("moved to demo start.\n");
-                } else {
-                    printf("WARNING: wams are unlinked!.\n");
-                }
+                printf("moved to demo start.\n");
+
             } else {
-                printf("Wam's must be linked before moving to demo start position.");
+                printf("Rolling out, stop with r first.");
             }
 
             break;

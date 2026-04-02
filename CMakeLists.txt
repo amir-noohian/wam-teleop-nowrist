@@ -53,6 +53,10 @@ add_executable(follower_policy src/follower_policy.cpp src/lib/udp_handler.cpp)
 target_link_libraries(follower_policy ${BARRETT_LIBRARIES} ${catkin_LIBRARIES} Boost::system Boost::thread)
 add_dependencies(follower_policy ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+add_executable(follower_pi0 src/follower_pi0.cpp src/lib/udp_handler.cpp)
+target_link_libraries(follower_pi0 ${BARRETT_LIBRARIES} ${catkin_LIBRARIES} Boost::system Boost::thread)
+add_dependencies(follower_pi0 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 add_executable(follower_ext src/follower_ext.cpp src/lib/udp_handler.cpp)
 target_link_libraries(follower_ext ${BARRETT_LIBRARIES} ${catkin_LIBRARIES} Boost::system Boost::thread)
 add_dependencies(follower_ext ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
