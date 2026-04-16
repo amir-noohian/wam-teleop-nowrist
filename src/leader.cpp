@@ -161,6 +161,7 @@ int wam_main(int argc, char **argv, ProductManager &pm,
 
   systems::connect(wam.jpOutput, leader.wamJPIn);
   systems::connect(wam.jvOutput, leader.wamJVIn);
+  systems::connect(customjtSum.output, leader.jtSumIn);
   // systems::connect(dynamicExtFilter.output, leader.extTorqueIn);
   systems::connect(dynamicExternalTorque.wamExternalTorqueOut,
                    leader.extTorqueIn);

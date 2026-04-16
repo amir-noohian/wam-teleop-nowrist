@@ -197,6 +197,7 @@ template <size_t DOF> int wam_main(int argc, char **argv, ProductManager &pm, sy
 
     systems::connect(wam.jpOutput, follower.wamJPIn);
     systems::connect(wam.jvOutput, follower.wamJVIn);
+    systems::connect(customjtSum.output, follower.jtSumIn);
 
     if (use_dynamics_for_ext_torque) {
         systems::connect(dynamicExternalTorque.wamExternalTorqueOut, follower.extTorqueIn);

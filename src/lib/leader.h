@@ -3,6 +3,7 @@
 #include <haptic_wrist/haptic_wrist.h>
 #include <boost/asio.hpp>
 
+#include "recorder_streamer.h"
 #include "udp_handler.h"
 #include <barrett/detail/ca_macro.h>
 #include <barrett/systems/abstract/single_io.h>
@@ -20,6 +21,7 @@ class Leader : public barrett::systems::System {
     Input<jt_type> extTorqueIn;   // may be undefined
     Input<jt_type> wamGravIn;
     Input<jt_type> wamDynIn;
+    Input<jt_type> jtSumIn;
 
     // Outputs (same as your first file)
     Output<jt_type> wamJPOutput;      // control torque command for the WAM arm (DOF)
@@ -32,6 +34,7 @@ class Leader : public barrett::systems::System {
                     const std::string& remoteHost,
                     int rec_port = 5555,
                     int send_port = 5554,
+                    int record_send_port = 5558; // TODO CHECK!!
                     const std::string& sysName = "Leader")
         : System(sysName)
         , theirJp(0.0)
@@ -46,6 +49,7 @@ class Leader : public barrett::systems::System {
         , wamJPOutput(this, &jtOutputValue)
         , theirJPOutput(this, &theirJPOutputValue)
         , udp_handler(remoteHost, send_port, rec_port)
+        , recorder_sender(remoteHost, record_send_port)
         , hw(hw)
         , state(State::INIT) {
 
@@ -77,6 +81,7 @@ class Leader : public barrett::systems::System {
     jt_type extTorque;
     jt_type wamGrav;
     jt_type wamDyn;
+    jt_type readJtSum; 
 
     // Wrist state
     haptic_wrist::jp_type wristJP;      // local wrist pos
@@ -87,6 +92,7 @@ class Leader : public barrett::systems::System {
     Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
     Eigen::Matrix<double, DOF + 3, 1> sendExtTorqueMsg;
+    Eigen::Matrix<double, DOF + 3, 1> sendJtMsg;
 
     using ReceivedData = typename UDPHandler<DOF + 3>::ReceivedData;
 
@@ -100,6 +106,7 @@ class Leader : public barrett::systems::System {
         wamJV  = wamJVIn.getValue();
         wamGrav = wamGravIn.getValue();
         wamDyn  = wamDynIn.getValue();
+        readJtSum = jtSumIn.getValue();
 
         if (extTorqueIn.valueDefined()) {
             extTorque = extTorqueIn.getValue();
@@ -124,6 +131,19 @@ class Leader : public barrett::systems::System {
 
         // Send
         udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
+
+
+        // Not sure how to do this proper tbh
+        sendJtMsg << readJtSum, 0.0, 0.0, 0.0;
+
+        RecorderPayload<DOF> record_message;
+        record_message.joint_positions = sendJpMsg;
+        record_message.joint_velocities = sendJvMsg;
+        record_message.measured_torques = sendJtMsg;
+        record_message.external_torques = sendExtTorqueMsg;
+        record_message.timestamp_us = getCurrentTimeMicroseconds();
+        record_message.gripper_position = 0.0;
+        recorder_sender.send(record_message);
 
         // Receive (non-blocking)
         boost::optional<ReceivedData> received_data = udp_handler.getLatestReceived();
@@ -192,6 +212,7 @@ class Leader : public barrett::systems::System {
     std::mutex state_mutex;
     jp_type joint_positions;
     UDPHandler<DOF + 3> udp_handler;
+    RecorderStreamer<RecorderPayload<DOF + 3>> recorder_sender;
     const std::chrono::milliseconds TIMEOUT_DURATION = std::chrono::milliseconds(20);
     State state;
 

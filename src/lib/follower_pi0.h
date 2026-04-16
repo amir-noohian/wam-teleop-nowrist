@@ -3,6 +3,7 @@
 #include <boost/asio.hpp>
 
 #include "udp_handler.h"
+#include "recorder_streamer.h"
 #include <barrett/detail/ca_macro.h>
 #include <barrett/systems/abstract/single_io.h>
 #include <barrett/thread/abstract/mutex.h>
@@ -17,6 +18,7 @@ template <size_t DOF> class FollowerPi0 : public barrett::systems::System {
     Input<jt_type> extTorqueIn;
     Input<jt_type> wamGravIn;
     Input<jt_type> wamDynIn;
+    Input<jt_type> jtSumIn;
     Output<jt_type> wamJPOutput;
     Output<jp_type> policyOutput;
     Output<jp_type> theirJPOutput;
@@ -27,9 +29,10 @@ template <size_t DOF> class FollowerPi0 : public barrett::systems::System {
                          int send_port = 5555, int policy_rec_port = 5556, int policy_send_port = 5557,
                          const std::string &sysName = "FollowerPi0")
         : System(sysName), theirJp(0.0), theirJv(0.0), theirExtTorque(0.0), control(0.0), wamJPIn(this), wamJVIn(this),
-          extTorqueIn(this), wamGravIn(this), wamDynIn(this), wamJPOutput(this, &jtOutputValue),
+          extTorqueIn(this), wamGravIn(this), wamDynIn(this), jtSumIn(this), wamJPOutput(this, &jtOutputValue),
           policyOutput(this, &policyOutputValue), theirJPOutput(this, &theirJPOutputValue),
           udp_handler(remoteHost, send_port, rec_port), policy_handler(remoteHost, policy_send_port, policy_rec_port),
+          recorder_sender(remoteHost, policy_send_port),
           state(State::INIT) {
 
         kp << 750, 1000, 400, 200, 10, 10, 2.5;
@@ -100,6 +103,7 @@ template <size_t DOF> class FollowerPi0 : public barrett::systems::System {
     jt_type extTorque;
     jt_type wamGrav;
     jt_type wamDyn;
+    jt_type readJtSum;
     jp_type tmp_jp;
     Eigen::Matrix<double, DOF, 1> sendJpMsg;
     Eigen::Matrix<double, DOF, 1> sendJvMsg;
@@ -113,6 +117,7 @@ template <size_t DOF> class FollowerPi0 : public barrett::systems::System {
         wamJV = wamJVIn.getValue();
         wamGrav = wamGravIn.getValue();
         wamDyn = wamDynIn.getValue();
+        readJtSum = jtSumIn.getValue();
 
         if (extTorqueIn.valueDefined()) {
             extTorque = extTorqueIn.getValue();
@@ -127,7 +132,16 @@ template <size_t DOF> class FollowerPi0 : public barrett::systems::System {
         sendExtTorqueMsg << extTorque;
 
         udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
-        policy_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
+
+        // TODO: how does sergey do the gripper?
+        RecorderPayload<DOF> record_message;
+        record_message.joint_positions = wamJP;
+        record_message.joint_velocities = wamJV;
+        record_message.measured_torques = readJtSum;
+        record_message.external_torques = extTorque;
+        record_message.timestamp_us = getCurrentTimeMicroseconds();
+        record_message.gripper_position = 0.0;
+        recorder_sender.send(record_message);
 
         boost::optional<ReceivedData> received_data = udp_handler.getLatestReceived();
         auto now = std::chrono::steady_clock::now();
@@ -210,6 +224,7 @@ template <size_t DOF> class FollowerPi0 : public barrett::systems::System {
     jp_type joint_positions;
     UDPHandler<DOF> udp_handler;
     UDPHandler<DOF> policy_handler;
+    RecorderStreamer<RecorderPayload<DOF>> recorder_sender;
     const std::chrono::milliseconds TIMEOUT_DURATION = std::chrono::milliseconds(20);
     const std::chrono::milliseconds POLICY_TIMEOUT_DURATION = std::chrono::milliseconds(100);
     State state;
