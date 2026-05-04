@@ -99,7 +99,7 @@ class Leader : public barrett::systems::System {
             extTorque << 0.0, 0.0, 0,0, 0.0;
         }
 
-        sendJpMsg << wamJP, -1.57, 0.0, 1.57;
+        sendJpMsg << wamJP, 0.0, 0.0, 0.0;
         sendJvMsg << wamJV, 0.0, 0.0, 0.0;
         sendExtTorqueMsg << extTorque, 0.0, 0.0, 0.0;
 
@@ -197,6 +197,6 @@ class Leader : public barrett::systems::System {
 
 
 
-        return u1;
+        return u4;
     };
 };
