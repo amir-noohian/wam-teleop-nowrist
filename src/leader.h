@@ -1,11 +1,10 @@
 #pragma once
-#include <haptic_wrist/haptic_wrist.h>
 
 #include <boost/asio.hpp>
 
 #include "udp_handler.h"
 #include <barrett/detail/ca_macro.h>
-#include <barrett/systems.h>
+#include <barrett/systems/abstract/single_io.h>
 #include <barrett/thread/abstract/mutex.h>
 #include <barrett/units.h>
 
@@ -16,34 +15,30 @@ class Leader : public barrett::systems::System {
   public:
     Input<jp_type> wamJPIn;
     Input<jv_type> wamJVIn;
-    Input<jt_type> extTorqueIn;
+    Input<jt_type> wamGravIn;
+    Input<jt_type> wamDynIn;
     Output<jt_type> wamJPOutput;
 
     enum class State { INIT, LINKED, UNLINKED };
 
-    explicit Leader(barrett::systems::ExecutionManager* em, haptic_wrist::HapticWrist* hw,
-                    const std::string& remoteHost, int rec_port = 5554, int send_port = 5555,
-                    const std::string& sysName = "Leader")
+    explicit Leader(barrett::systems::ExecutionManager* em, char* remoteHost, int rec_port = 5555,
+                      int send_port = 5554, const std::string& sysName = "Leader Nowrist")
         : System(sysName)
         , theirJp(0.0)
         , theirJv(0.0)
-        , theirExtTorque(0.0)
         , control(0.0)
         , wamJPIn(this)
         , wamJVIn(this)
-        , extTorqueIn(this)
+        , wamGravIn(this)
+        , wamDynIn(this)
         , wamJPOutput(this, &jtOutputValue)
         , udp_handler(remoteHost, send_port, rec_port)
-        , hw(hw)
         , state(State::INIT) {
-
 
         // kp << 600, 700, 250, 120;
         // kd << 30, 25, 15, 10;
-
-        kp << 750, 1000, 400, 200;
-        kd << 8.3, 8, 3.3, 0.8;
-
+        kp << 600, 700, 250, 120, 10, 10, 2.5;
+        kd << 8.3, 8, 3.3, 0.8, 0.5, 0.5, 0.05;
 
         if (em != NULL) {
             em->startManaging(*this);
@@ -70,44 +65,34 @@ class Leader : public barrett::systems::System {
     typename Output<jt_type>::Value* jtOutputValue;
     jp_type wamJP;
     jv_type wamJV;
-    jt_type extTorque;
-    Eigen::Matrix<double, DOF + 3, 1> sendJpMsg;
-    Eigen::Matrix<double, DOF + 3, 1> sendJvMsg;
-    Eigen::Matrix<double, DOF + 3, 1> sendExtTorqueMsg;
+    jt_type wamGrav;
+    jt_type wamDyn;
+    Eigen::Matrix<double, DOF, 1> sendJpMsg;
+    Eigen::Matrix<double, DOF, 1> sendJvMsg;
 
-    using ReceivedData = typename UDPHandler<DOF + 3>::ReceivedData;
+    using ReceivedData = typename UDPHandler<DOF>::ReceivedData;
 
     virtual void operate() {
 
-        // TODO: change back to 1.5, likely need to scale vel as well
-        double j5_scale = 1.0;
-        double j7_scale = 1.0;
-
         wamJP = wamJPIn.getValue();
         wamJV = wamJVIn.getValue();
-        extTorque = extTorqueIn.getValue();
+        wamGrav = wamGravIn.getValue();
+        wamDyn = wamDynIn.getValue();
+        sendJpMsg << wamJP; // added zero to send zero joint positions to the wrist part of the 7-dof follower
+        sendJvMsg << wamJV;
 
-        haptic_wrist::jp_type wristJP = hw->getPosition();
-        haptic_wrist::jp_type wristJV = hw->getVelocity();
-        sendJpMsg << wamJP, wristJP;
-        sendJvMsg << wamJV, wristJV;
-        sendExtTorqueMsg << extTorque, 0, 0, 0;
-        sendJpMsg(4) = j5_scale * sendJpMsg(4);
-        sendJpMsg(6) = j7_scale * sendJpMsg(6);
-
-        udp_handler.send(sendJpMsg, sendJvMsg, sendExtTorqueMsg);
+        udp_handler.send(sendJpMsg, sendJvMsg);
 
         boost::optional<ReceivedData> received_data = udp_handler.getLatestReceived();
         auto now = std::chrono::steady_clock::now();
         if (received_data && (now - received_data->timestamp <= TIMEOUT_DURATION)) {
 
-            theirJp = received_data->jp.template head<DOF>();
-            theirWristJp = received_data->jp.template tail<3>();
-            theirWristJp(0) = theirWristJp(0) / j5_scale;
-            theirWristJp(2) = theirWristJp(2) / j7_scale;
+            // theirJp = received_data->jp;
+            // theirJv = received_data->jv;
 
+            theirJp = received_data->jp.template head<DOF>();
             theirJv = received_data->jv.template head<DOF>();
-            theirExtTorque = received_data->extTorque.template head<DOF>();
+
         } else {
             if (state == State::LINKED) {
                 std::cout << "lost link" << std::endl;
@@ -117,21 +102,16 @@ class Leader : public barrett::systems::System {
 
         switch (state) {
             case State::INIT:
-                // Used so haptic wirst holds on moveTo command
                 control.setZero();
                 jtOutputValue->setData(&control);
                 break;
             case State::LINKED:
                 // Active teleop. Only the callee can transition to LINKED
-
-                hw->setTarget(theirWristJp); //change from setPosition
-                control = compute_control(theirJp, theirJv, wamJP, wamJV);
-
+                control = compute_control(theirJp, theirJv, wamJP, wamJV, wamGrav, wamDyn);
                 jtOutputValue->setData(&control);
                 break;
             case State::UNLINKED:
                 // Changed to unlinked with either timeout or callee.
-                hw->setTarget(wristJP); //changed from setPosition
                 control.setZero();
                 jtOutputValue->setData(&control);
                 break;
@@ -140,26 +120,28 @@ class Leader : public barrett::systems::System {
 
     jp_type theirJp;
     jp_type theirJv;
-    jt_type theirExtTorque;
     jt_type control;
-    haptic_wrist::jp_type theirWristJp;
 
   private:
     DISALLOW_COPY_AND_ASSIGN(Leader);
-    haptic_wrist::HapticWrist* hw;
     std::mutex state_mutex;
     jp_type joint_positions;
-    UDPHandler<DOF + 3> udp_handler;
+    UDPHandler<DOF> udp_handler;
     const std::chrono::milliseconds TIMEOUT_DURATION = std::chrono::milliseconds(20);
     State state;
-    Eigen::Vector4d kp;
-    Eigen::Vector4d kd;
+    Eigen::Matrix<double, DOF, 1> kp;
+    Eigen::Matrix<double, DOF, 1> kd;
 
-    jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jt_type& feedforward,
-                            const jp_type& cur_pos, const jv_type& cur_vel) {
+    jt_type compute_control(const jp_type& ref_pos, const jv_type& ref_vel, const jp_type& cur_pos,
+                            const jv_type& cur_vel, const jt_type& wam_grav, const jt_type& wam_dyn) {
         jt_type pos_term = kp.asDiagonal() * (ref_pos - cur_pos);
         jt_type vel_term = kd.asDiagonal() * (ref_vel - cur_vel);
-        jt_type feedforward_term = 0.4 * feedforward;
-        return pos_term + vel_term - feedforward_term;
+        jt_type grav_mod = wam_grav;
+        grav_mod[4] = 0.0;
+        grav_mod[5] = 0.0;
+        grav_mod[6] = 0.0;
+        jt_type feedforward = wam_dyn - grav_mod;
+        return pos_term + vel_term;
     };
 };
+

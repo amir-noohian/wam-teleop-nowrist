@@ -138,6 +138,6 @@ class Follower : public barrett::systems::System {
         grav_mod[5] = 0.0;
         grav_mod[6] = 0.0;
         jt_type feedforward = wam_dyn - grav_mod;
-        return feedforward + pos_term + vel_term;
+        return pos_term + vel_term;
     };
 };

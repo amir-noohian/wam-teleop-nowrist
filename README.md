@@ -46,7 +46,7 @@ In a separate terminal session, start the master node with: `roscore`.
 In a separate terminal session, start the leader in `amir\catkin_ws\src\wam_teleop`:
 ```bash
 source scripts/setup_leader.sh
-rosrun wam_teleop leader_nowrist 127.0.0.1 5555 5554
+rosrun wam_teleop leader 127.0.0.1 5555 5554
 ```
 In another separate terminal session, start the follower in `amir\catkin_ws\src\wam_teleop`:
 ```bash

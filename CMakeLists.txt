@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 project(wam_teleop)
 
-option(BUILD_LEADER "Build leader executable" ON)
-
 # By default, build programs with compiler optimizations and debugging symbols
 if (NOT CMAKE_BUILD_TYPE)
    set(CMAKE_BUILD_TYPE "RelWithDebInfo")
@@ -37,18 +35,10 @@ add_definitions(${BARRETT_DEFINITIONS})
 
 find_package(Boost REQUIRED COMPONENTS system thread)
 
-if (BUILD_LEADER) 
-   find_package(haptic_wrist REQUIRED)
-   add_executable(leader src/leader.cpp src/udp_handler.cpp)
-   target_link_libraries(leader ${BARRETT_LIBRARIES} ${catkin_LIBRARIES} haptic_wrist Boost::system Boost::thread)
-   target_compile_definitions(leader PRIVATE BUILD_LEADER)
-   add_dependencies(leader ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-endif()
-
 add_executable(follower src/follower.cpp src/udp_handler.cpp)
 target_link_libraries(follower ${BARRETT_LIBRARIES} ${catkin_LIBRARIES} Boost::system Boost::thread)
 add_dependencies(follower ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(leader_nowrist src/leader_nowrist.cpp src/udp_handler.cpp)
-target_link_libraries(leader_nowrist ${BARRETT_LIBRARIES} ${catkin_LIBRARIES} Boost::system Boost::thread)
-add_dependencies(leader_nowrist ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(leader src/leader.cpp src/udp_handler.cpp)
+target_link_libraries(leader ${BARRETT_LIBRARIES} ${catkin_LIBRARIES} Boost::system Boost::thread)
+add_dependencies(leader ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

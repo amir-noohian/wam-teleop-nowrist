@@ -45,8 +45,8 @@ template <size_t WAM_DOF> class BackgroundStatePublisher {
     using jv_type = typename barrett::units::JointPositions<WAM_DOF>::type;
 
   public:
-    BackgroundStatePublisher(barrett::systems::ExecutionManager* em, barrett::systems::Wam<WAM_DOF> &wam, haptic_wrist::HapticWrist *hw = nullptr)
-        : wam(wam), hw(hw), stop_thread(false), nh((WAM_DOF == 4) ? "leader" : "follower"), exposedGravity(em) {
+    BackgroundStatePublisher(barrett::systems::ExecutionManager* em, barrett::systems::Wam<WAM_DOF> &wam)
+        : wam(wam), stop_thread(false), nh((WAM_DOF == 7) ? "leader" : "follower"), exposedGravity(em) {
 
         barrett::systems::connect(wam.gravity.output, exposedGravity.input);
 
@@ -58,15 +58,10 @@ template <size_t WAM_DOF> class BackgroundStatePublisher {
         joint_names.push_back("wam_j2");
         joint_names.push_back("wam_j3");
         joint_names.push_back("wam_j4");
-        if (WAM_DOF == 7) {
-            joint_names.push_back("wam_j5");
-            joint_names.push_back("wam_j6");
-            joint_names.push_back("wam_j7");
-        } else {
-            joint_names.push_back("hapticwrist_j1");
-            joint_names.push_back("hapticwrist_j2");
-            joint_names.push_back("hapticwrist_j3");
-        }
+        joint_names.push_back("wam_j5");
+        joint_names.push_back("wam_j6");
+        joint_names.push_back("wam_j7");
+
         joint_state.name = joint_names;
         joint_state.position.resize(7);
         joint_state.velocity.resize(7);
@@ -87,7 +82,6 @@ template <size_t WAM_DOF> class BackgroundStatePublisher {
   private:
     ros::NodeHandle nh;
     barrett::systems::Wam<WAM_DOF> &wam;
-    haptic_wrist::HapticWrist *hw;
     ros::Publisher joint_state_pub;
     ros::Publisher grav_pub;
     sensor_msgs::JointState joint_state;
@@ -115,18 +109,7 @@ template <size_t WAM_DOF> class BackgroundStatePublisher {
                 gravTorque.torque[i] = grav[i];
 
             }
-#ifdef BUILD_LEADER
-            if (WAM_DOF == 4 && hw != nullptr) {
-                haptic_wrist::jp_type hw_jp = hw->getPosition();
-                haptic_wrist::jv_type hw_jv = hw->getVelocity();
-                haptic_wrist::jt_type hw_jt = hw->getTorque();
-                for (size_t i = 0; i < 3; i++) {
-                    joint_state.position[WAM_DOF + i] = hw_jp[i];
-                    joint_state.velocity[WAM_DOF + i] = hw_jv[i];
-                    joint_state.effort[WAM_DOF + i] = hw_jt[i];
-                }
-            }
-#endif
+
             joint_state.header.stamp = ros::Time::now();
             joint_state_pub.publish(joint_state);
 
@@ -137,3 +120,4 @@ template <size_t WAM_DOF> class BackgroundStatePublisher {
         }
     }
 };
+
