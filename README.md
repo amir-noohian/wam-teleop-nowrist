@@ -33,7 +33,7 @@ The following controllers are implemented:
   Baseline two-channel position–position teleoperation with gravity compensation only.
 
 - **Gravity Compensation with Force Feedforward (GC-FF)**  
-  The estimated external torque at the follower is fed forward to the leader to improve interaction feedback.
+  The estimated external torque at the leader is fed forward to the leader to improve interaction feedback.
 
 - **Gravity Compensation with Local Force Feedback (GC-LFB)**  
   Local force feedback is applied on the leader using the estimated external torque.
