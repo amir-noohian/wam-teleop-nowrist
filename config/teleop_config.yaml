@@ -1,0 +1,36 @@
+network:
+  # ports are from the perspective of the leader
+  leader_host: "127.0.0.1"
+  follower_host: "127.0.0.1"
+  teleop_send: 5555
+  teleop_recv: 5554
+  inference_host: "127.0.0.1"
+  leader_inference_send: 6555
+  follower_inference_send: 6554
+  inference_recv: 6666
+  mode: 0  # 0: TELEOP, 1: RECORD, 2: INFERENCE
+
+sync_mapping:
+  scales:  [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  offsets: [0, 0.0,  0.0,  0.0, 0, 0, 0]
+
+leader:
+  sync_pos: [0.0, -1.7, 0.0, 2.97, 0.0, 0.0, 0.0] 
+  gains:
+    kp: [750.0, 1000.0, 400.0, 200.0
+    kd: [8.3, 8.0, 3.3, 0.8]
+    cf: [0.375, 0.4, 0.2, 0.1]
+  haptics:
+    torque_scaling: 1.5
+    minStiffness: 0.05
+    maxStiffness: 1.0
+    alpha: 0.35
+  vertical: false
+
+follower:
+  sync_pos: [0.0, -1.7, 0.0, 2.97, 0.0, 0.0, 0.0] 
+  gains:
+    kp: [750.0, 1000.0, 400.0, 200.0, 10.0, 10.0, 10.0] 
+    kd: [8.3, 8.0, 3.3, 0.8, 0.5, 0.5, 0.5]
+    cf: [0.375, 0.4, 0.2, 0.1, 0.01, 0.01, 0.01]
+  vertical: false
