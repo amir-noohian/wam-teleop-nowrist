@@ -2,4 +2,4 @@
 
 PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-export BARRETT_CONFIG_FILE="$PACKAGE_DIR/config/leader-zeus-7dof/default.conf"
+export BARRETT_CONFIG_FILE="$PACKAGE_DIR/config/leader-zeus-7dof/leader.conf"
